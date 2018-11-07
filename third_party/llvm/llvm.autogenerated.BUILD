@@ -115,9 +115,9 @@ template_rule(
 cc_library(
     name = "config",
     hdrs = glob([
-        "**/*.h",
-        "**/*.def",
-        "**/*.inc.cpp",
+        "!(build*)/**/*.h",
+        "!(build*)/**/*.def",
+        "!(build*)/**/*.inc.cpp",
     ]) + [
         "include/llvm/Config/AsmParsers.def",
         "include/llvm/Config/AsmPrinters.def",
@@ -1400,6 +1400,7 @@ cc_library(
         ":profile_data",
         ":scalar",
         ":support",
+        ":tapir",
         ":target",
         ":transform_utils",
     ],
@@ -1846,6 +1847,7 @@ cc_library(
         ":profile_data",
         ":scalar",
         ":support",
+        ":tapir",
         ":transform_utils",
         ":vectorize",
     ],
@@ -1923,6 +1925,7 @@ cc_library(
         ":mc",
         ":profile_data",
         ":support",
+        ":tapir",
         ":transform_utils",
     ],
 )
@@ -3505,6 +3508,31 @@ cc_library(
         ":config",
         ":mc",
         ":support",
+    ],
+)
+
+cc_library(
+    name = "tapir",
+    srcs = glob([
+        "lib/Transforms/Tapir/*.c",
+        "lib/Transforms/Tapir/*.cpp",
+        "lib/Transforms/Tapir/*.inc",
+        "include/llvm-c/Transforms/Tapir.h",
+        "lib/Transforms/Tapir/*.h",
+    ]),
+    hdrs = glob([
+        "include/llvm/Transforms/Tapir/*.h",
+        "include/llvm/Transforms/Tapir/*.def",
+        "include/llvm/Transforms/Tapir/*.inc",
+        "include/llvm/Transforms/Tapir.h",
+    ]),
+    copts = llvm_copts,
+    deps = [
+        ":analysis",
+        ":config",
+        ":core",
+        ":support",
+        ":transform_utils",
     ],
 )
 
