@@ -71,6 +71,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/service/cpu/ir_emitter.h"
 #include "tensorflow/compiler/xla/service/cpu/parallel_task_assignment.h"
 #include "tensorflow/compiler/xla/service/cpu/simple_orc_jit.h"
+#include "tensorflow/compiler/xla/service/cpu/tapir_assignment.h"
 #include "tensorflow/compiler/xla/service/dfs_hlo_visitor_with_default.h"
 #include "tensorflow/compiler/xla/service/dot_decomposer.h"
 #include "tensorflow/compiler/xla/service/dump.h"
@@ -383,15 +384,18 @@ Status CpuCompiler::RunHloPassesAfterLayoutAssn(
       module->config().intra_op_parallelism_threads() > 0
           ? module->config().intra_op_parallelism_threads()
           : tensorflow::port::NumSchedulableCPUs();
-  if (!is_aot_compile) {
-    // Run ParallelTaskAssigner to assign parallel tasks to HLOs in module.
-    // Note this is not run for AOT because it would bring in thread pool
-    // and thread synchronization dependencies which would likely increase
-    // binary size (and most AOT applications are single-threaded).
-    // TODO(b/29630486) Support multi-threaded AOT.
-    pipeline.AddPass<ParallelTaskAssigner>(
-        max_parallelism, ShapeSizeBytesFunction(), target_machine_features);
-  }
+  pipeline.AddPass<TapirAssigner>(
+      max_parallelism, ShapeSizeBytesFunction(), target_machine_features);
+  // if (!is_aot_compile) {
+  //   // Run ParallelTaskAssigner to assign parallel tasks to HLOs in module.
+  //   // Note this is not run for AOT because it would bring in thread pool
+  //   // and thread synchronization dependencies which would likely increase
+  //   // binary size (and most AOT applications are single-threaded).
+  //   // TODO(b/29630486) Support multi-threaded AOT.
+  //   pipeline.AddPass<ParallelTaskAssigner>(
+  //       max_parallelism, ShapeSizeBytesFunction(), target_machine_features);
+  // }
+
   // Copy insertion should be performed immediately before IR emission to
   // avoid inserting unnecessary copies (later pass adds an instruction which
   // materializes the value) or missing a necessary copy (later pass removes

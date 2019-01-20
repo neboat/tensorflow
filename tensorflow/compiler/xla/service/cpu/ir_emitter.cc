@@ -50,6 +50,7 @@ limitations under the License.
 #include "tensorflow/compiler/xla/service/cpu/parallel_loop_emitter.h"
 #include "tensorflow/compiler/xla/service/cpu/shape_partition.h"
 #include "tensorflow/compiler/xla/service/cpu/simple_orc_jit.h"
+#include "tensorflow/compiler/xla/service/cpu/tapir_loop_emitter.h"
 #include "tensorflow/compiler/xla/service/elemental_ir_emitter.h"
 #include "tensorflow/compiler/xla/service/hlo_casting_utils.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
@@ -3127,6 +3128,7 @@ Status IrEmitter::EmitTargetElementLoop(
 
   if (target_shape.IsTuple() && (target_op->IsMultiOutputFusion() ||
                                  target_op->opcode() == HloOpcode::kReduce)) {
+    // TODO: Determine if we can use Tapir to emit these loops.
     // For multiple outputs fusion, we need to emit each operand and the root.
     TF_RET_CHECK(num_dynamic_loop_bounds_ == 0);
     std::vector<llvm_ir::IrArray> output_arrays;
@@ -3148,6 +3150,10 @@ Status IrEmitter::EmitTargetElementLoop(
     }
     llvm_ir::EmitTuple(target_array, tuple_operand_ptrs, &b_);
 
+  } else if (ShouldEmitTapirLoopFor(*target_op)) {
+    // Emit parallel loop with dynamic loop bounds for most-major dimensions.
+    TF_RETURN_IF_ERROR(TapirLoopEmitter(element_generator, target_array, &b_)
+		       .EmitLoop(IrName(target_op)));
   } else {
     if (ShouldEmitParallelLoopFor(*target_op)) {
       // Emit code to read dynamic loop bounds from compute function argument.

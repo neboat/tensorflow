@@ -484,6 +484,13 @@ class IrEmitter : public DfsHloVisitorWithDefault,
            op.parent()->root_instruction() == &op;
   }
 
+  // Returns whether the given instruction should be emitted as a Tapir loop.
+  bool ShouldEmitTapirLoopFor(const HloInstruction& op) const {
+    // Emit Tapir loop for root instruction if the instruction has the
+    // right flag set.
+    return op.CodeGenUsingTapir();
+  }
+
   // This struct contains all the state needed to emit instructions for
   // profiling a computation.
   class ProfilingState {

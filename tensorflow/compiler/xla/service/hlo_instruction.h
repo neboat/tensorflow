@@ -1389,6 +1389,11 @@ class HloInstruction {
   void set_outer_dimension_partitions(
       const std::vector<int64>& outer_dimension_partitions);
 
+  // Get/set the flag indicating whether to use Tapir when generating
+  // LLVM IR for this instruction.
+  bool CodeGenUsingTapir() const { return use_tapir_; }
+  void setCodeGenUsingTapir(bool v) { use_tapir_ = v; }
+
   // Old methods kept for smooth subclassing transition BEGIN.
   // TODO(b/80131774): Remove this code.
 
@@ -1817,6 +1822,9 @@ class HloInstruction {
   // The number of partitions per outer dimension (listed in order from
   // outer-most dimension first).
   std::vector<int64> outer_dimension_partitions_;
+
+  // Bool to identify instructions to compile using Tapir.
+  bool use_tapir_ = false;
 
   TF_DISALLOW_COPY_AND_ASSIGN(HloInstruction);
 };

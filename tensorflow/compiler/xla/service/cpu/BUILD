@@ -89,6 +89,7 @@ cc_library(
         ":ir_emitter",
         ":parallel_task_assignment",
         ":simple_orc_jit",
+        ":tapir_assignment",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         ":target_machine_features",
@@ -282,6 +283,7 @@ cc_library(
         ":parallel_loop_emitter",
         ":shape_partition",
         ":simple_orc_jit",
+        ":tapir_loop_emitter",
         ":target_machine_features",
         "//tensorflow/compiler/xla:shape_util",
         "//tensorflow/compiler/xla:status_macros",
@@ -391,6 +393,22 @@ cc_library(
         "//tensorflow/compiler/xla/service/llvm_ir:kernel_support_library",
         "//tensorflow/compiler/xla/service/llvm_ir:llvm_util",
         "//tensorflow/core:lib",
+        "@llvm//:core",
+    ],
+)
+
+cc_library(
+    name = "tapir_loop_emitter",
+    srcs = ["tapir_loop_emitter.cc"],
+    hdrs = ["tapir_loop_emitter.h"],
+    deps = [
+        ":ir_emission_utils",
+        "//tensorflow/compiler/xla/service/llvm_ir:ir_array",
+        "//tensorflow/compiler/xla/service/llvm_ir:llvm_loop",
+        "//tensorflow/compiler/xla/service/llvm_ir:llvm_util",
+        "//tensorflow/compiler/xla/service/llvm_ir:loop_emitter",
+        "//tensorflow/core:lib",
+        "@com_google_absl//absl/strings:str_format",
         "@llvm//:core",
     ],
 )
@@ -932,6 +950,23 @@ tf_cc_test(
         "//tensorflow/compiler/xla/tests:test_utils",
         "//tensorflow/core:lib",
         "//tensorflow/core:test",
+    ],
+)
+
+cc_library(
+    name = "tapir_assignment",
+    srcs = ["tapir_assignment.cc"],
+    hdrs = ["tapir_assignment.h"],
+    deps = [
+        ":dot_op_emitter",
+        ":ir_emission_utils",
+        ":shape_partition",
+        ":target_machine_features",
+        "//tensorflow/compiler/xla/service:hlo",
+        "//tensorflow/compiler/xla/service:hlo_cost_analysis",
+        "//tensorflow/compiler/xla/service:hlo_pass",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
     ],
 )
 

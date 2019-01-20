@@ -84,7 +84,8 @@ class ForLoop {
       absl::string_view prefix, llvm::Value* start_index,
       llvm::Value* end_index, llvm::Value* step, llvm::IRBuilder<>* b,
       UnrollMode unroll_mode = llvm_ir::UnrollMode::kDefaultUnroll,
-      bool prevent_vectorization = false);
+      bool prevent_vectorization = false, bool tapir_loop = false,
+      llvm::Value* sync_reg = nullptr, bool needs_sync = false);
 
   // The names of the blocks follow LLVM's conventions. Control flow amongst the
   // blocks for the example C code looks like:
@@ -138,7 +139,9 @@ class ForLoop {
 
   ForLoop(absl::string_view prefix, absl::string_view suffix,
           llvm::Value* start_index, llvm::Value* end_index, llvm::Value* step,
-          UnrollMode unroll_mode, bool prevent_vectorization);
+          UnrollMode unroll_mode, bool prevent_vectorization,
+          bool tapir_loop = false, llvm::Value* sync_reg = nullptr,
+          bool needs_sync = false);
 
   // Emit the loop at the insert point of the builder.
   void Emit(llvm::IRBuilder<>* b);
@@ -172,6 +175,11 @@ class ForLoop {
   llvm::Value* indvar_;
   UnrollMode unroll_mode_;
   bool prevent_vectorization_;
+
+  // Flags to enable Tapir-loop creation
+  bool tapir_loop_;
+  llvm::Value* sync_reg_;
+  bool needs_sync_;
 };
 
 // A simple class for constructing nested for-loops.
@@ -197,14 +205,16 @@ class ForLoopNest {
       absl::string_view suffix, llvm::Value* start_index,
       llvm::Value* end_index, llvm::Value* stride,
       UnrollMode unroll_mode = xla::llvm_ir::UnrollMode::kDefaultUnroll,
-      bool prevent_vectorization = false);
+      bool prevent_vectorization = false,
+      bool tapir_loop = false, bool needs_sync = false);
 
   // Like the above, except that it defaults to a stride of one.
   std::unique_ptr<ForLoop> AddLoop(
       absl::string_view suffix, llvm::Value* start_index,
       llvm::Value* end_index,
       UnrollMode unroll_mode = xla::llvm_ir::UnrollMode::kDefaultUnroll,
-      bool prevent_vectorization = false);
+      bool prevent_vectorization = false,
+      bool tapir_loop = false, bool needs_sync = false);
 
   // A convenient wrapper of the other flavor of AddLoop. The given start and
   // end index are constant.
@@ -212,13 +222,15 @@ class ForLoopNest {
       int64 start_index, int64 end_index, int64 stride,
       absl::string_view suffix,
       UnrollMode unroll_mode = xla::llvm_ir::UnrollMode::kDefaultUnroll,
-      bool prevent_vectorization = false);
+      bool prevent_vectorization = false,
+      bool tapir_loop = false, bool needs_sync = false);
 
   // Like the above, except that it defaults to a stride of one.
   std::unique_ptr<ForLoop> AddLoop(
       int64 start_index, int64 end_index, absl::string_view suffix,
       UnrollMode unroll_mode = xla::llvm_ir::UnrollMode::kDefaultUnroll,
-      bool prevent_vectorization = false);
+      bool prevent_vectorization = false,
+      bool tapir_loop = false, bool needs_sync = false);
 
   // Add loops to iterate through the indices within the specified
   // shape. The returned index collects the induction variables of the
