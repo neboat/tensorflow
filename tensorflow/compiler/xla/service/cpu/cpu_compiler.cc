@@ -150,6 +150,8 @@ CpuCompiler::CpuCompiler() {
   LLVMInitializeX86Target();
   LLVMInitializeX86TargetInfo();
   LLVMInitializeX86TargetMC();
+  // This appears to be necessary for the Cilk Tapir backend.
+  LLVMInitializeX86AsmParser();
   LLVMInitializeX86AsmPrinter();
   LLVMInitializeX86Disassembler();
   LLVMInitializeARMTarget();

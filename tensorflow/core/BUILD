@@ -2121,6 +2121,7 @@ cc_library(
         "//conditions:default": [
             "-ldl",
             "-lpthread",
+            "-lcilkrts",
         ],
     }),
     deps = tf_additional_lib_deps() + [

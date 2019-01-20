@@ -36,6 +36,7 @@ limitations under the License.
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/llvm_ir_runtime.h"
 #include "tensorflow/compiler/xla/service/llvm_ir/llvm_util.h"
@@ -208,6 +209,9 @@ void CompilerFunctor::AddTargetInfoPasses(
       absl::make_unique<llvm::TargetLibraryInfoImpl>(target_triple);
   target_library_info_impl->addVectorizableFunctions(
       VectorFunctionsForTargetLibraryInfoImpl());
+  // Use Cilk as the Tapir target.
+  // TODO: Generalize this code.
+  target_library_info_impl->setTapirTarget(llvm::TapirTargetID::Cilk);
   passes->add(
       new llvm::TargetLibraryInfoWrapperPass(*target_library_info_impl));
   passes->add(createTargetTransformInfoWrapperPass(
@@ -233,6 +237,10 @@ void CompilerFunctor::AddOptimizationPasses(
   builder.DisableUnrollLoops = opt_level == 0;
   builder.LoopVectorize = opt_level > 0 && size_level == 0;
   builder.SLPVectorize = opt_level > 1 && size_level == 0;
+
+  // Add Cilk Tapir target.
+  // TODO: Generalize this functionality
+  builder.TapirTarget = llvm::TapirTargetID::Cilk;
 
   builder.populateFunctionPassManager(*function_passes);
   builder.populateModulePassManager(*module_passes);
