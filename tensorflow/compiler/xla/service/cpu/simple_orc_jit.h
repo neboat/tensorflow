@@ -67,7 +67,8 @@ class SimpleOrcJIT {
                llvm::CodeGenOpt::Level opt_level, bool optimize_for_size,
                bool enable_fast_math, bool disable_expensive_passes,
                LLVMCompiler::ModuleHook pre_optimization_hook,
-               LLVMCompiler::ModuleHook post_optimization_hook);
+               LLVMCompiler::ModuleHook post_optimization_hook,
+               bool run_cilksan = false);
 
   // Data layout this JIT was created with.
   const llvm::DataLayout& data_layout() const { return data_layout_; }

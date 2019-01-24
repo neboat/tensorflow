@@ -57,6 +57,16 @@ class LLVMCompiler : public Compiler {
 
   void RemovePostOptimizationHook() { user_post_optimization_hook_ = nullptr; }
 
+  // Extension points for running CSI
+  enum class CSI_ExtensionPoint {
+    CSI_None,
+    CSI_EarlyAsPossible,
+    CSI_ModuleOptimierEarly,
+    CSI_OptimizerLast,
+    CSI_TapirLate,
+    CSI_TapirLoopEnd,
+  };
+
   // Bring in
   //   StatusOr<std::unique_ptr<Executable>> RunBackend(
   //       std::unique_ptr<HloModule> module,

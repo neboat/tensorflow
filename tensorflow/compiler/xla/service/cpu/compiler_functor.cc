@@ -36,7 +36,10 @@ limitations under the License.
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Instrumentation.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/llvm_ir_runtime.h"
 #include "tensorflow/compiler/xla/service/llvm_ir/llvm_util.h"
@@ -218,6 +221,23 @@ void CompilerFunctor::AddTargetInfoPasses(
       target_machine_->getTargetIRAnalysis()));
 }
 
+static void addCilkSanitizerPass(const llvm::PassManagerBuilder &builder,
+                                 llvm::legacy::PassManagerBase &pm) {
+  pm.add(llvm::createCilkSanitizerLegacyPass());
+
+  // CilkSanitizer inserts complex instrumentation that mostly follows the logic
+  // of the original code, but operates on "shadow" values.  It can benefit from
+  // re-running some general purpose optimization passes.
+  if (builder.OptLevel > 0) {
+    pm.add(llvm::createEarlyCSEPass());
+    pm.add(llvm::createReassociatePass());
+    pm.add(llvm::createLICMPass());
+    pm.add(llvm::createGVNPass());
+    pm.add(llvm::createInstructionCombiningPass());
+    pm.add(llvm::createDeadStoreEliminationPass());
+  }
+}
+
 void CompilerFunctor::AddOptimizationPasses(
     llvm::legacy::PassManagerBase* module_passes,
     llvm::legacy::FunctionPassManager* function_passes, unsigned opt_level,
@@ -241,6 +261,10 @@ void CompilerFunctor::AddOptimizationPasses(
   // Add Cilk Tapir target.
   // TODO: Generalize this functionality
   builder.TapirTarget = llvm::TapirTargetID::Cilk;
+
+  if (run_cilksan_)
+    builder.addExtension(llvm::PassManagerBuilder::EP_TapirLate,
+                         addCilkSanitizerPass);
 
   builder.populateFunctionPassManager(*function_passes);
   builder.populateModulePassManager(*module_passes);

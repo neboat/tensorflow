@@ -36,7 +36,8 @@ class CompilerFunctor {
       int opt_level, bool optimize_for_size, bool enable_fast_math,
       bool disable_expensive_passes,
       LLVMCompiler::ModuleHook pre_optimization_hook = nullptr,
-      LLVMCompiler::ModuleHook post_optimization_hook = nullptr)
+      LLVMCompiler::ModuleHook post_optimization_hook = nullptr,
+      bool run_cilksan = false)
       : target_machine_(target_machine),
         disassembler_(CHECK_NOTNULL(disassembler)),
         opt_level_(opt_level),
@@ -44,7 +45,8 @@ class CompilerFunctor {
         enable_fast_math_(enable_fast_math),
         disable_expensive_passes_(disable_expensive_passes),
         pre_optimization_hook_(pre_optimization_hook),
-        post_optimization_hook_(post_optimization_hook) {}
+        post_optimization_hook_(post_optimization_hook),
+        run_cilksan_(run_cilksan) {}
 
   // Compile a Module to an ObjectFile.
   std::unique_ptr<llvm::MemoryBuffer> operator()(
@@ -68,6 +70,7 @@ class CompilerFunctor {
   const bool disable_expensive_passes_;
   LLVMCompiler::ModuleHook pre_optimization_hook_;
   LLVMCompiler::ModuleHook post_optimization_hook_;
+  const bool run_cilksan_;
 };
 
 }  // namespace cpu
