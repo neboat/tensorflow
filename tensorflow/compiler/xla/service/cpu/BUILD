@@ -170,7 +170,6 @@ cc_library(
         "simple_orc_jit.cc",
         "windows_compatibility.cc",
         "windows_compatibility.h",
-        "runtime_cilkrts.h",
     ],
     hdrs = ["simple_orc_jit.h"],
     deps = [

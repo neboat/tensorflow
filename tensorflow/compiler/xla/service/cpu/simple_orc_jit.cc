@@ -26,11 +26,11 @@ limitations under the License.
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Host.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/custom_call_target_registry.h"
 #include "tensorflow/compiler/xla/service/cpu/orc_jit_memory_mapper.h"
-#include "tensorflow/compiler/xla/service/cpu/runtime_cilkrts.h"
 #include "tensorflow/compiler/xla/service/cpu/runtime_conv2d.h"
 #include "tensorflow/compiler/xla/service/cpu/runtime_conv2d_mkl.h"
 #include "tensorflow/compiler/xla/service/cpu/runtime_fft.h"
@@ -126,12 +126,30 @@ SimpleOrcJIT::SimpleOrcJIT(const llvm::TargetOptions& target_options,
                                      std::move(post_optimization_hook))) {
   VLOG(1) << "CPU target: " << target_machine_->getTargetCPU().str()
           << " features: " << target_machine_->getTargetFeatureString().str();
+  string error;
+  auto dy_lib =
+    llvm::sys::DynamicLibrary::getPermanentLibrary("libcilkrts.so.5", &error);
+  if (!dy_lib.isValid())
+    VLOG(1) << "Error loading Cilk runtime system: " << error << "\n";
+
+  llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
 llvm::JITSymbol SimpleOrcJIT::ResolveRuntimeSymbol(const std::string& name) {
   void* func_addr = CustomCallTargetRegistry::Global()->Lookup(name);
   if (func_addr == nullptr) {
-    VLOG(3) << "SimpleOrcJIT::ResolveRuntimeSymbol resolved " << name << " to nullptr.\n";
+    if (auto sym = compile_layer_.findSymbol(name, false))
+      return sym;
+    else if (uint64_t sym_addr =
+             llvm::RTDyldMemoryManager::getSymbolAddressInProcess(name))
+      return llvm::JITSymbol(sym_addr, llvm::JITSymbolFlags::Exported);
+    // else if (const void* sym_addr =
+    //       llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(name))
+    //   return llvm::JITSymbol(reinterpret_cast<uint64_t>(sym_addr),
+    //                       llvm::JITSymbolFlags::Exported);
+
+    VLOG(3) << "SimpleOrcJIT::ResolveRuntimeSymbol resolved " << name
+            << " to nullptr.\n";
     return nullptr;
   }
   llvm::JITEvaluatedSymbol symbol_info(reinterpret_cast<uint64_t>(func_addr),
@@ -164,7 +182,8 @@ llvm::JITSymbol SimpleOrcJIT::FindCompiledSymbol(const std::string& name) {
       return symbol;
     }
   }
-
+  VLOG(3) << "SimpleOrcJIT::FindCompiledSymbol resolved " << name
+          << " to nullptr.\n";
   return nullptr;
 }
 
@@ -299,21 +318,6 @@ bool RegisterKnownJITSymbols() {
   REGISTER_LIBM_SYMBOL(trunc, double (*)(double));
 
 #undef REGISTER_LIBM_SYMBOL
-
-// Register CilkRTS symbols.
-// TODO: Generalize this code for different Cilk backends.
-  registry->Register("__cilkrts_bind_thread_1",
-		     reinterpret_cast<void*>(__cilkrts_bind_thread_1));
-  registry->Register("__cilkrts_get_nworkers",
-		     reinterpret_cast<void*>(__cilkrts_get_nworkers));
-  registry->Register("__cilkrts_get_tls_worker",
-		     reinterpret_cast<void*>(__cilkrts_get_tls_worker));
-  registry->Register("__cilkrts_get_tls_worker_fast",
-		     reinterpret_cast<void*>(__cilkrts_get_tls_worker_fast));
-  registry->Register("__cilkrts_leave_frame",
-		     reinterpret_cast<void*>(__cilkrts_leave_frame));
-  registry->Register("__cilkrts_sync",
-		     reinterpret_cast<void*>(__cilkrts_sync));
 
   registry->Register("memcpy", reinterpret_cast<void*>(memcpy));
   registry->Register("memmove", reinterpret_cast<void*>(memmove));

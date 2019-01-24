@@ -109,7 +109,7 @@ $(HOST_NSYNC_LIB) \
 
 # If we're on Linux, also link in the dl library.
 ifeq ($(HOST_OS),LINUX)
-	HOST_LIBS += -ldl -lpthread -lcilkrts
+	HOST_LIBS += -ldl -lpthread
 endif
 
 # If we're on a Pi, link in pthreads and dl
@@ -249,7 +249,7 @@ endif
 endif
 # If we're on Linux, also link in the dl library.
 ifeq ($(TARGET),LINUX)
-	LIBS += -ldl -lpthread -lcilkrts
+	LIBS += -ldl -lpthread
 endif
 # If we're cross-compiling for the Raspberry Pi, use the right gcc.
 ifeq ($(TARGET),PI)
