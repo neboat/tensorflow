@@ -26,6 +26,7 @@ const char* const kLlvmIrDotTilingFactor = "xla_llvm_dot_tiling_factor";
 const char* const kXlaForceEnableExperimentalLlvmIrGemm =
     "xla_force_enable_experimental_llvm_ir_gemm";
 const char* const kLlvmIrGemmTileSize = "xla_llvm_ir_gemm_tile_size";
+const char* const kLlvmRunCilksan = "xla_llvm_run_cilksan";
 
 }  // namespace
 
@@ -97,6 +98,12 @@ absl::optional<std::tuple<int64, int64, int64>> LlvmIrGemmTileSize(
 
   return std::tuple<int64, int64, int64>(tile_size_m, tile_size_k,
                                          tile_size_n_in_vector_width);
+}
+
+bool RunCilksan(const HloModuleConfig& config) {
+  const auto& extra_options_map =
+      config.debug_options().xla_backend_extra_options();
+  return extra_options_map.count(kLlvmRunCilksan) > 0;
 }
 
 }  // namespace options
