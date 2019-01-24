@@ -1,3 +1,26 @@
+**TensorFlow+Tapir** embeds the [Tapir](http://cilk.mit.edu/tapir/) compiler technology into the XLA compiler within Google's [TensorFlow](https://www.tensorflow.org/) machine-learning framework, with the goal of enhancing the speed, scalability, and performance portability of machine-learning applications.  This repository maintains a fork of TensorFlow version 1.12 with modifications to integrate a branch of the Tapir/LLVM compiler.
+
+| **`Building TensorFlow+Tapir`** |
+|-----------------|
+
+To build TensorFlow+Tapir, first clone this repository and the `xla` branch of the Tapir-LLVM repository into sibling directories on the system, e.g., as follows:
+```shell
+$ git clone https://github.com/neboat/tensorflow.git
+$ git clone https://github.com/wsmoses/Tapir-LLVM.git tapir/src
+$ cd tapir/src
+$ git checkout xla
+$ cd ../../tensorflow
+```
+Next, build TensorFlow from this version of its source code, following the standard instructions for building TensorFlow from source: https://www.tensorflow.org/install/source.
+- You will need to build TensorFlow with XLA JIT support to use the Tapir/LLVM component.  
+- Although a GPU back end for Tapir is still under development, you can instruct TensorFlow to use Tapir/LLVM as a traditional `clang` compiler for to compiling CUDA code as follows.
+  1. Separately download and build the xla branch of the Tapir/LLVM compiler, together with its the Tapir/Clang front end and Tapir/compiler-rt subproject.
+  2. When configuring TensorFlow's build, choose to use `clang` as the CUDA compiler, choose *not* to download a new copy of `clang`, and provide the path to the `clang` binary created from building Tapir.
+
+Below is the standard README for TensorFlow version 1.12.
+
+-----------------
+
 <div align="center">
   <img src="https://www.tensorflow.org/images/tf_logo_social.png">
 </div>
