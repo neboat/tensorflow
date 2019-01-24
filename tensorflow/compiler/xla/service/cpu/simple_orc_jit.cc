@@ -26,6 +26,7 @@ limitations under the License.
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Host.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/custom_call_target_registry.h"
@@ -125,6 +126,13 @@ SimpleOrcJIT::SimpleOrcJIT(const llvm::TargetOptions& target_options,
                                      std::move(post_optimization_hook))) {
   VLOG(1) << "CPU target: " << target_machine_->getTargetCPU().str()
           << " features: " << target_machine_->getTargetFeatureString().str();
+  string error;
+  auto dy_lib =
+    llvm::sys::DynamicLibrary::getPermanentLibrary("libcilkrts.so.5", &error);
+  if (!dy_lib.isValid())
+    VLOG(1) << "Error loading Cilk runtime system: " << error << "\n";
+
+  llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
 llvm::JITSymbol SimpleOrcJIT::ResolveRuntimeSymbol(const std::string& name) {
@@ -139,6 +147,16 @@ llvm::JITSymbol SimpleOrcJIT::ResolveRuntimeSymbol(const std::string& name) {
   }
 
   if (func_addr == nullptr) {
+    if (auto sym = compile_layer_.findSymbol(name, false))
+      return sym;
+    else if (uint64_t sym_addr =
+             llvm::RTDyldMemoryManager::getSymbolAddressInProcess(name))
+      return llvm::JITSymbol(sym_addr, llvm::JITSymbolFlags::Exported);
+    // else if (const void* sym_addr =
+    //       llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(name))
+    //   return llvm::JITSymbol(reinterpret_cast<uint64_t>(sym_addr),
+    //                       llvm::JITSymbolFlags::Exported);
+
     LOG(ERROR) << "Unable to resolve runtime symbol: " << name;
     return nullptr;
   }
@@ -172,7 +190,8 @@ llvm::JITSymbol SimpleOrcJIT::FindCompiledSymbol(const std::string& name) {
       return symbol;
     }
   }
-
+  VLOG(3) << "SimpleOrcJIT::FindCompiledSymbol resolved " << name
+          << " to nullptr.\n";
   return nullptr;
 }
 
