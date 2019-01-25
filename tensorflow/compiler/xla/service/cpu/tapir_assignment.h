@@ -25,6 +25,13 @@ limitations under the License.
 namespace xla {
 namespace cpu {
 
+// Simple interface for different parallel cost model implementations.
+class TapirCostModel {
+ public:
+  virtual ~TapirCostModel() = default;
+  virtual int64 GetParallelTaskCount(HloInstruction* instruction) = 0;
+};
+
 // TapirAssignment finds targets for Tapir codegen for HLOs in 'module'.
 class TapirAssignment {
  public:
@@ -42,6 +49,7 @@ class TapirAssignment {
   bool CanUseTapir(HloInstruction* instruction);
 
  private:
+  std::unique_ptr<TapirCostModel> cost_model_;
   const TargetMachineFeatures& target_machine_features_;
 };
 
