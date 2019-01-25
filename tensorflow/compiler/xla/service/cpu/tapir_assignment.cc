@@ -28,6 +28,90 @@ limitations under the License.
 namespace xla {
 namespace cpu {
 
+static const int64 L1_cache_size = 32LL << 10;  // 32KB L1 cache size.
+
+class SimpleCostModel : public TapirCostModel {
+ public:
+  SimpleCostModel(const int64 max_parallelism,
+                  const HloCostAnalysis::ShapeSizeFunction& shape_size)
+      : max_parallelism_(max_parallelism), shape_size_(shape_size) {}
+  ~SimpleCostModel() override {}
+
+  int64 GetParallelTaskCount(HloInstruction* instruction) override {
+    // Simple cost model based on hlo size and typical L2 cache size.
+    const int64 instruction_cost = shape_size_(instruction->shape());
+    // const int64 min_cost_per_thread = 256LL << 10;  // 256KB L2 Cache size.
+    // // Return target parallel task count in [1, max_parallelism_].
+    // return std::min(max_parallelism_,
+    //                 std::max(int64{1}, instruction_cost / min_cost_per_thread));
+    const int64 min_cost_per_thread = L1_cache_size;
+    return std::max(int64{1}, instruction_cost / min_cost_per_thread);
+  }
+
+ private:
+  const int64 max_parallelism_;
+  const HloCostAnalysis::ShapeSizeFunction shape_size_;
+};
+
+class DefaultCostModel : public TapirCostModel {
+ public:
+  DefaultCostModel(const int64 max_parallelism,
+                   const HloCostAnalysis::ShapeSizeFunction& shape_size,
+                   std::unique_ptr<HloCostAnalysis> cost_analysis)
+      : max_parallelism_(max_parallelism),
+        shape_size_(shape_size),
+        cost_analysis_(std::move(cost_analysis)) {}
+  ~DefaultCostModel() override {}
+
+  int64 GetParallelTaskCount(HloInstruction* instruction) override {
+    // Parameters for parallel task count computation.
+    int64 instruction_cost;
+    int64 min_cost_per_thread;
+    int64 max_parallelism;
+    // Calculate flops-to-bytes-ratio for 'instruction'.
+    const int64 bytes_accessed =
+        std::max(int64{1}, cost_analysis_->bytes_accessed(*instruction));
+    const float flops_to_bytes_ratio =
+        cost_analysis_->flop_count(*instruction) /
+        static_cast<float>(bytes_accessed);
+    // Check for I/O bound instructions.
+    if (flops_to_bytes_ratio <= 1.0) {
+      // Limit max parallelism for I/O bound instructions by assuming a
+      // sub-linear scaling function (fit based on empirical benchmark results).
+      // TODO(b/29630486) Develop system bandwidth model.
+      max_parallelism =
+          std::ceil(std::sqrt(tensorflow::port::NumSchedulableCPUs()));
+      // Use shape size instruction cost and L2 cache size min per-thread cost.
+      instruction_cost = shape_size_(instruction->shape());
+      // min_cost_per_thread = 256LL << 10;  // 256KB L2 Cache size.
+      min_cost_per_thread = L1_cache_size;
+    } else {
+      // Use max parallelism for compute bound instructions.
+      max_parallelism = max_parallelism_;
+      // Calculate the instruction cost in cycles.
+      // TODO(b/29630486) Improve on this linear cost model.
+      // Consider making 'min_cost_per_thread' be a function of the target
+      // bandwidth limit for instructions with low arithmetic complexity.
+      instruction_cost =
+          1 * cost_analysis_->flop_count(*instruction) +
+          2 * cost_analysis_->transcendental_count(*instruction) +
+          10 * cost_analysis_->bytes_accessed(*instruction);
+      // // Minimum per-thread cost is 100us of work on a 2GHz core.
+      // min_cost_per_thread = 100000;
+      min_cost_per_thread = 1000;
+    }
+    // Return target parallel task count in [1, max_parallelism_].
+    // return std::min(max_parallelism,
+    //                 std::max(int64{1}, instruction_cost / min_cost_per_thread));
+    return std::max(int64{1}, instruction_cost / min_cost_per_thread);
+  }
+
+ private:
+  const int64 max_parallelism_;
+  const HloCostAnalysis::ShapeSizeFunction shape_size_;
+  const std::unique_ptr<HloCostAnalysis> cost_analysis_;
+};
+
 TapirAssignment::TapirAssignment(
     const int64 max_parallelism,
     const HloCostAnalysis::ShapeSizeFunction& shape_size, HloModule* module,
@@ -39,14 +123,14 @@ TapirAssignment::TapirAssignment(
   HloComputation* computation = module->entry_computation();
   Status status = computation->root_instruction()->Accept(cost_analysis.get());
   if (status.ok()) {
-    // // Set default cost model based on 'cost_analysis'.
-    // cost_model_.reset(new DefaultCostModel(max_parallelism, shape_size,
-    //                                        std::move(cost_analysis)));
+    // Set default cost model based on 'cost_analysis'.
+    cost_model_.reset(new DefaultCostModel(max_parallelism, shape_size,
+                                           std::move(cost_analysis)));
   } else {
-    // // Fall back to a simple cost model based on hlo size and L2 cache size.
-    // // Note that HloCostAnalysis can returns an error status (likely because
-    // // HLOs like CustomCall are not yet implemented in the HloCostAnalysis).
-    // cost_model_.reset(new SimpleCostModel(max_parallelism, shape_size));
+    // Fall back to a simple cost model based on hlo size and L2 cache size.
+    // Note that HloCostAnalysis can returns an error status (likely because
+    // HLOs like CustomCall are not yet implemented in the HloCostAnalysis).
+    cost_model_.reset(new SimpleCostModel(max_parallelism, shape_size));
   }
 }
 
@@ -75,7 +159,7 @@ bool TapirAssignment::CanUseTapir(
       instruction->shape().IsTuple()) {
     return false;
   }
-  return true;
+  return (cost_model_->GetParallelTaskCount(instruction) > 1);
 }
 
 StatusOr<bool> TapirAssigner::Run(HloModule* module) {
