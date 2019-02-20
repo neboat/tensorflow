@@ -98,7 +98,7 @@ class DefaultCostModel : public TapirCostModel {
           10 * cost_analysis_->bytes_accessed(*instruction);
       // // Minimum per-thread cost is 100us of work on a 2GHz core.
       // min_cost_per_thread = 100000;
-      min_cost_per_thread = 1000;
+      min_cost_per_thread = 100;
     }
     // Return target parallel task count in [1, max_parallelism_].
     // return std::min(max_parallelism,
@@ -159,7 +159,8 @@ bool TapirAssignment::CanUseTapir(
       instruction->shape().IsTuple()) {
     return false;
   }
-  return (cost_model_->GetParallelTaskCount(instruction) > 1);
+  // return (cost_model_->GetParallelTaskCount(instruction) > 1);
+  return true;
 }
 
 StatusOr<bool> TapirAssigner::Run(HloModule* module) {
