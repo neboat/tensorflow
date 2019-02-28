@@ -100,7 +100,7 @@ SimpleOrcJIT::SimpleOrcJIT(
     LLVMCompiler::ModuleHook pre_optimization_hook,
     LLVMCompiler::ModuleHook post_optimization_hook,
     std::function<void(const llvm::object::ObjectFile&)> post_codegen_hook,
-    bool run_cilksan)
+    bool run_cilksan, bool run_csi)
     : target_machine_(InferTargetMachineForJIT(target_options, opt_level)),
       data_layout_(target_machine_->createDataLayout()),
       symbol_resolver_(llvm::orc::createLegacyLookupResolver(
@@ -137,7 +137,7 @@ SimpleOrcJIT::SimpleOrcJIT(
               target_machine_.get(), opt_level, optimize_for_size,
               disable_expensive_passes, std::move(pre_optimization_hook),
               std::move(post_optimization_hook), std::move(post_codegen_hook)),
-	      run_cilksan),
+              run_cilksan, run_csi),
       gdb_jit_event_listener_(
           llvm::JITEventListener::createGDBRegistrationListener()) {
   VLOG(1) << "CPU target: " << target_machine_->getTargetCPU().str()

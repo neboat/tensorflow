@@ -31,6 +31,7 @@ absl::optional<int64> LlvmIrGemvTilingFactor(const HloModuleConfig& config);
 absl::optional<std::tuple<int64, int64, int64>> LlvmIrGemmTileSize(
     const HloModuleConfig& config);
 bool RunCilksan(const HloModuleConfig& config);
+bool RunCSI(const HloModuleConfig& config);
 
 }  // namespace options
 }  // namespace cpu

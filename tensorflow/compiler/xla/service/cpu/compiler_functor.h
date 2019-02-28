@@ -37,14 +37,17 @@ class CompilerFunctor {
       LLVMCompiler::ModuleHook post_optimization_hook = nullptr,
       std::function<void(const llvm::object::ObjectFile&)> post_codegen_hook =
           nullptr,
-      bool run_cilksan = false)
+      bool run_cilksan = false,
+      bool run_csi = false)
       : target_machine_(target_machine),
         opt_level_(opt_level),
         optimize_for_size_(optimize_for_size),
         disable_expensive_passes_(disable_expensive_passes),
         pre_optimization_hook_(std::move(pre_optimization_hook)),
         post_optimization_hook_(std::move(post_optimization_hook)),
-        post_codegen_hook_(std::move(post_codegen_hook)), run_cilksan_(run_cilksan) {}
+        post_codegen_hook_(std::move(post_codegen_hook)),
+        run_cilksan_(run_cilksan),
+        run_csi_(run_csi) {}
 
   // Compile a Module to an ObjectFile.
   std::unique_ptr<llvm::MemoryBuffer> operator()(
@@ -68,6 +71,7 @@ class CompilerFunctor {
   LLVMCompiler::ModuleHook post_optimization_hook_;
   std::function<void(const llvm::object::ObjectFile&)> post_codegen_hook_;
   const bool run_cilksan_;
+  const bool run_csi_;
 };
 
 }  // namespace cpu

@@ -201,6 +201,23 @@ void CompilerFunctor::AddTargetInfoPasses(
       target_machine_->getTargetIRAnalysis()));
 }
 
+static void addComprehensiveStaticInstrumentationPass(const llvm::PassManagerBuilder &builder,
+                       llvm::legacy::PassManagerBase &pm) {
+  pm.add(llvm::createComprehensiveStaticInstrumentationLegacyPass());
+
+  // CSI inserts complex instrumentation that mostly follows the logic of the
+  // original code, but operates on "shadow" values.  It can benefit from
+  // re-running some general purpose optimization passes.
+  if (builder.OptLevel > 0) {
+    pm.add(llvm::createEarlyCSEPass());
+    pm.add(llvm::createReassociatePass());
+    pm.add(llvm::createLICMPass());
+    pm.add(llvm::createGVNPass());
+    pm.add(llvm::createInstructionCombiningPass());
+    pm.add(llvm::createDeadStoreEliminationPass());
+  }
+}
+
 static void addCilkSanitizerPass(const llvm::PassManagerBuilder &builder,
                                  llvm::legacy::PassManagerBase &pm) {
   pm.add(llvm::createCilkSanitizerLegacyPass());
@@ -244,6 +261,12 @@ void CompilerFunctor::AddOptimizationPasses(
   if (run_cilksan_)
     builder.addExtension(llvm::PassManagerBuilder::EP_TapirLate,
                          addCilkSanitizerPass);
+
+  if (run_csi_)
+  {
+    builder.addExtension(llvm::PassManagerBuilder::EP_TapirLate,
+                         addComprehensiveStaticInstrumentationPass);
+  }
 
   builder.populateFunctionPassManager(*function_passes);
   builder.populateModulePassManager(*module_passes);

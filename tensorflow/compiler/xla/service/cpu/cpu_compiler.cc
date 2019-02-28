@@ -629,7 +629,8 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
       module->config().debug_options().xla_llvm_disable_expensive_passes(),
       pre_optimization_ir_hook, post_optimization_ir_hook,
       OrcJITPostCompilationHook::Create(module.get()),
-      options::RunCilksan(module->config()));
+      options::RunCilksan(module->config()),
+      options::RunCSI(module->config()));
   llvm_module->setDataLayout(jit->data_layout());
   llvm_module->setTargetTriple(jit->target_triple().getTriple());
 
