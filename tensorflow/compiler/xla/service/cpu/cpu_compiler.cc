@@ -354,8 +354,8 @@ Status CpuCompiler::RunHloPassesAfterLayoutAssn(
       module->config().intra_op_parallelism_threads() > 0
           ? module->config().intra_op_parallelism_threads()
           : tensorflow::port::NumSchedulableCPUs();
-  pipeline.AddPass<TapirAssigner>(
-      max_parallelism, ShapeSizeBytesFunction(), target_machine_features);
+  pipeline.AddPass<TapirAssigner>(max_parallelism, ShapeSizeBytesFunction(),
+                                  target_machine_features);
   // if (!is_aot_compile) {
   //   // Run ParallelTaskAssigner to assign parallel tasks to HLOs in module.
   //   // Note this is not run for AOT because it would bring in thread pool
@@ -539,9 +539,11 @@ StatusOr<std::unique_ptr<HloModule>> CpuCompiler::RunHloPasses(
   return std::move(module);
 }
 
+
 StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
     std::unique_ptr<HloModule> module, se::StreamExecutor* stream_exec,
     DeviceMemoryAllocator* /*device_allocator*/) {
+  jit_mutex_.lock();
   const string timer_message =
       "Compiling [" + module->name() + "] for CPU using JIT";
   XLA_SCOPED_LOGGING_TIMER(timer_message);
@@ -562,17 +564,20 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   auto llvm_module =
       absl::make_unique<llvm::Module>("__compute_module", *llvm_context);
 
-  auto jit = absl::make_unique<SimpleOrcJIT>(
-      CompilerTargetOptions(module->config()),
-      CodeGenOptLevel(module->config()),
-      options::OptimizeForSizeRequested(module->config()),
-      module->config().debug_options().xla_cpu_enable_fast_math(),
-      module->config().debug_options().xla_llvm_disable_expensive_passes(),
-      pre_optimization_ir_hook, post_optimization_ir_hook,
-      options::RunCilksan(module->config()),
-      options::RunCSI(module->config()));
-  llvm_module->setDataLayout(jit->data_layout());
-  llvm_module->setTargetTriple(jit->target_triple().getTriple());
+
+  if (!jit_)
+    jit_ = std::move(absl::make_unique<SimpleOrcJIT>(
+        CompilerTargetOptions(module->config()),
+        CodeGenOptLevel(module->config()),
+        options::OptimizeForSizeRequested(module->config()),
+        module->config().debug_options().xla_cpu_enable_fast_math(),
+        module->config().debug_options().xla_llvm_disable_expensive_passes(),
+        pre_optimization_ir_hook, post_optimization_ir_hook,
+        options::RunCilksan(module->config()),
+        options::RunCSI(module->config())));
+
+  llvm_module->setDataLayout(jit_->data_layout());
+  llvm_module->setTargetTriple(jit_->target_triple().getTriple());
 
   HloComputation* entry_computation = module->entry_computation();
   std::unordered_map<const HloInstruction*, int64> instruction_to_profile_idx;
@@ -624,7 +629,7 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   // GetEmbeddedComputations guarantees that a called computation occurs
   // before a caller computation.
 
-  LLVMTargetMachineFeatures target_machine_features(jit->target_machine());
+  LLVMTargetMachineFeatures target_machine_features(jit_->target_machine());
   IrEmitter ir_emitter(*module, *assignment, llvm_module.get(),
                        std::move(instruction_to_profile_idx),
                        std::move(computation_to_profile_idx),
@@ -657,7 +662,7 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   string function_name = [&]() {
     llvm::SmallVector<char, 40> function_name_vector;
     llvm::Mangler::getNameWithPrefix(
-        function_name_vector, entry_function->getName(), jit->data_layout());
+        function_name_vector, entry_function->getName(), jit_->data_layout());
     return string(function_name_vector.begin(), function_name_vector.end());
   }();
 
@@ -669,10 +674,10 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
 
   XLA_VLOG_LINES(2, "LLVM IR:\n" + llvm_ir::DumpModuleToString(*llvm_module));
 
-  // JIT compile the LLVM IR module to in-memory machine code.
-  jit->AddModule(std::move(llvm_module));
+  // jit_ compile the LLVM IR module to in-memory machine code.
+  jit_->AddModule(std::move(llvm_module));
   cpu_executable.reset(new CpuExecutable(
-      std::move(jit), std::move(assignment), std::move(module), function_name,
+      jit_->FindCompiledSymbol(function_name), std::move(assignment), std::move(module), function_name,
       std::move(hlo_profile_printer_data), std::move(hlo_profile_index_map)));
 
   if (embed_ir_in_executable) {
@@ -681,6 +686,7 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   }
 
   VLOG(1) << "Compilation finished";
+  jit_mutex_.unlock();
   return std::move(cpu_executable);
 }
 
