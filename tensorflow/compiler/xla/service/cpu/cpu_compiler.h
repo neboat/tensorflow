@@ -114,6 +114,8 @@ class CpuAotCompilationResult : public AotCompilationResult {
   std::unique_ptr<HloProfilePrinterData> hlo_profile_printer_data_;
 };
 
+class SimpleOrcJIT;
+
 // CPU-targeting implementation of the XLA Compiler interface.
 //
 // The compiler translates XLA HLO code into LLVM IR and uses LLVM's JIT
@@ -167,6 +169,9 @@ class CpuCompiler : public LLVMCompiler {
       LLVMTargetMachineFeatures* target_machine_features);
 
   TF_DISALLOW_COPY_AND_ASSIGN(CpuCompiler);
+ 
+  tensorflow::mutex jit_mutex_;
+  std::unique_ptr<SimpleOrcJIT> jit_ = nullptr;
 };
 
 }  // namespace cpu

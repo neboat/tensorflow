@@ -47,7 +47,7 @@ namespace cpu {
 // architecture, so JIT-ed code and host code share the same ABI.
 class CpuExecutable : public Executable {
  public:
-  CpuExecutable(std::unique_ptr<SimpleOrcJIT> jit,
+  CpuExecutable(llvm::JITSymbol entry_symbol,
                 std::unique_ptr<const BufferAssignment> assignment,
                 std::unique_ptr<HloModule> hlo_module,
                 const string& entry_function_name,
@@ -134,7 +134,7 @@ class CpuExecutable : public Executable {
   const PointsToSet& GetRootPointsToSet() const;
 
   // The JIT containing compiled modules.
-  const std::unique_ptr<SimpleOrcJIT> jit_;
+  // const std::unique_ptr<SimpleOrcJIT> jit_;
 
   // Buffer assignment for the buffers we need to allocate.
   const std::unique_ptr<const BufferAssignment> assignment_;
