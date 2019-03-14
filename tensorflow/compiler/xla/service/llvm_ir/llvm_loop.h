@@ -245,7 +245,8 @@ class ForLoopNest {
   // within the shape. One possible order for that sequence would be:
   //
   //   (0,0), (0,1), (0,2), (1,0), (1,1), (1,2)
-  IrArray::Index AddLoopsForShape(const Shape& shape, absl::string_view suffix);
+  IrArray::Index AddLoopsForShape(const Shape& shape, absl::string_view suffix,
+                                  bool tapir_loop = false);
 
   // Add a loop for each dimension in "dimensions". "suffix" is the
   // name suffix of the indvar and basic blocks in this new loop nest.
@@ -255,7 +256,7 @@ class ForLoopNest {
   // dimension that is not in "dimensions".
   IrArray::Index AddLoopsForShapeOnDimensions(
       const Shape& shape, absl::Span<const int64> dimensions,
-      absl::string_view suffix);
+      absl::string_view suffix, bool tapir_loop = false);
 
   // Emits a series of nested loops for iterating over an operand array. Loops
   // are constructed in major to minor dimension layout order. No loop is
@@ -266,7 +267,8 @@ class ForLoopNest {
   // basic blocks) constructed by this method.
   IrArray::Index EmitOperandArrayLoopNest(const llvm_ir::IrArray& operand_array,
                                           int64 dimension_to_skip,
-                                          absl::string_view name_suffix);
+                                          absl::string_view name_suffix,
+                                          bool tapir_loop = false);
 
   // Convenience methods which return particular basic blocks of the outermost
   // or innermost loops. These methods return nullptr if no loops have been

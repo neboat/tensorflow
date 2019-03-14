@@ -1287,9 +1287,9 @@ Status DotOpEmitter::Emit() {
   // in a separate innermost loop which performs the sum of products.
   llvm_ir::ForLoopNest loop_nest(llvm_ir::IrName(&dot_), b_);
   llvm_ir::IrArray::Index lhs_index = loop_nest.EmitOperandArrayLoopNest(
-      lhs_array_, /*dimension_to_skip=*/lhs_reduction_dimension, "lhs");
+      lhs_array_, /*dimension_to_skip=*/lhs_reduction_dimension, "lhs", true);
   llvm_ir::IrArray::Index rhs_index = loop_nest.EmitOperandArrayLoopNest(
-      rhs_array_, /*dimension_to_skip=*/rhs_reduction_dimension, "rhs");
+      rhs_array_, /*dimension_to_skip=*/rhs_reduction_dimension, "rhs", true);
 
   // Create the loop which does the sum of products reduction.
   //
@@ -1655,6 +1655,10 @@ bool ProfitableToImplementDotInTiledLlvmIr(const HloInstruction& dot) {
   // Any Matrix-Vector product of floating point or integral type, or
   // a transpose-dot fusion of the same can be lowered to a tiled LLVM
   // IR implementation.
+
+  // TODO: Remove this hack, which forces the use of Tapir.
+  return true;
+
   const Shape& shape = dot.shape();
   return shape.dimensions_size() == 2 &&
          (shape.dimensions(0) == 1 || shape.dimensions(1) == 1) &&

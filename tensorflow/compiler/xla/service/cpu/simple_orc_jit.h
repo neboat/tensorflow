@@ -81,7 +81,8 @@ class SimpleOrcJIT {
 
   // Add a module to the JIT. Returns an opaque key that can be used to later
   // remove this module.
-  VModuleKeyT AddModule(std::unique_ptr<llvm::Module> module);
+  VModuleKeyT AddModule(std::unique_ptr<llvm::Module> module,
+			std::unique_ptr<llvm::LLVMContext> ctx);
 
   // Remove a module from the JIT and free the memory associated with it.
   void RemoveModule(VModuleKeyT key);
@@ -102,6 +103,7 @@ class SimpleOrcJIT {
   llvm::JITSymbol ResolveRuntimeSymbol(const std::string& name);
 
   std::vector<VModuleKeyT> module_keys_;
+  std::unordered_map<VModuleKeyT, std::unique_ptr<llvm::LLVMContext>> contexts_;
   std::unique_ptr<llvm::TargetMachine> target_machine_;
   const Disassembler disassembler_;
   const llvm::DataLayout data_layout_;
