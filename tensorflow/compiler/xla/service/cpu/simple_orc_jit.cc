@@ -170,14 +170,17 @@ llvm::JITSymbol SimpleOrcJIT::ResolveRuntimeSymbol(const std::string& name) {
 }
 
 SimpleOrcJIT::VModuleKeyT SimpleOrcJIT::AddModule(
-    std::unique_ptr<llvm::Module> module) {
+    std::unique_ptr<llvm::Module> module,
+    std::unique_ptr<llvm::LLVMContext> ctx) {
   auto key = execution_session_.allocateVModule();
   cantFail(compile_layer_.addModule(key, std::move(module)));
   module_keys_.push_back(key);
+  contexts_[key] = std::move(ctx);
   return key;
 }
 
 void SimpleOrcJIT::RemoveModule(SimpleOrcJIT::VModuleKeyT key) {
+  contexts_.erase(key);
   module_keys_.erase(std::remove(module_keys_.begin(), module_keys_.end(), key),
                      module_keys_.end());
   cantFail(compile_layer_.removeModule(key));

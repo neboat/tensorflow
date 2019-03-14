@@ -671,7 +671,7 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   XLA_VLOG_LINES(2, "LLVM IR:\n" + llvm_ir::DumpModuleToString(*llvm_module));
 
   // jit_ compile the LLVM IR module to in-memory machine code.
-  jit_->AddModule(std::move(llvm_module));
+  jit_->AddModule(std::move(llvm_module), std::move(llvm_context));
   cpu_executable.reset(new CpuExecutable(
       jit_->FindCompiledSymbol(function_name), std::move(assignment), std::move(module), function_name,
       std::move(hlo_profile_printer_data), std::move(hlo_profile_index_map)));
