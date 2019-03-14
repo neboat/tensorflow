@@ -266,13 +266,13 @@ std::unique_ptr<ForLoop> ForLoopNest::AddLoop(
         llvm_ir::EmitCallToIntrinsic(llvm::Intrinsic::syncregion_start, {}, {},
                                      b_);
     } else {
-      auto savedIP = b_->saveIP();
-      b_->SetInsertPoint(&func->getEntryBlock(),
-                         func->getEntryBlock().getFirstInsertionPt());
+      // auto savedIP = b_->saveIP();
+      // b_->SetInsertPoint(&func->getEntryBlock(),
+      //                    func->getEntryBlock().getFirstInsertionPt());
       sync_reg =
         llvm_ir::EmitCallToIntrinsic(llvm::Intrinsic::syncregion_start, {}, {},
                                      b_);
-      b_->restoreIP(savedIP);
+      // b_->restoreIP(savedIP);
     }
   }
   std::unique_ptr<ForLoop> loop(new ForLoop(
@@ -321,16 +321,18 @@ std::unique_ptr<ForLoop> ForLoopNest::AddLoop(int64 start_index,
 }
 
 IrArray::Index ForLoopNest::AddLoopsForShape(const Shape& shape,
-                                             absl::string_view suffix) {
+                                             absl::string_view suffix,
+                                             bool tapir_loop) {
   std::vector<int64> dimensions(shape.rank());
   std::iota(dimensions.begin(), dimensions.end(), 0);
-  return IrArray::Index(AddLoopsForShapeOnDimensions(shape, dimensions, suffix),
+  return IrArray::Index(AddLoopsForShapeOnDimensions(shape, dimensions, suffix,
+                                                     tapir_loop),
                         shape, index_type_);
 }
 
 std::vector<llvm::Value*> ForLoopNest::AddLoopsForShapeOnDimensions(
     const Shape& shape, absl::Span<const int64> dimensions,
-    absl::string_view suffix) {
+    absl::string_view suffix, bool tapir_loop) {
   std::vector<llvm::Value*> multi_index(shape.dimensions_size());
   for (int64 dimension : dimensions) {
     std::unique_ptr<llvm_ir::ForLoop> loop = AddLoop(
@@ -348,7 +350,7 @@ std::vector<llvm::Value*> ForLoopNest::AddLoopsForShapeOnDimensions(
 
 std::vector<llvm::Value*> ForLoopNest::EmitOperandArrayLoopNest(
     const llvm_ir::IrArray& operand_array, int64 dimension_to_skip,
-    absl::string_view name_suffix) {
+    absl::string_view name_suffix, bool tapir_loop) {
   // Prepares the dimension list we will use to emit the loop nest. Outermost
   // loops are added first. Add loops in major-to-minor order, and skip the
   // 'dimension_to_skip' dimension.
@@ -365,7 +367,7 @@ std::vector<llvm::Value*> ForLoopNest::EmitOperandArrayLoopNest(
   // Create loop nest with one for-loop for each dimension of the
   // output.
   std::vector<llvm::Value*> multi_index =
-      AddLoopsForShapeOnDimensions(shape, dimensions, name_suffix);
+      AddLoopsForShapeOnDimensions(shape, dimensions, name_suffix, tapir_loop);
   // Verify every dimension except the 'dimension_to_skip' dimension was set in
   // the index.
   for (size_t dimension = 0; dimension < multi_index.size(); ++dimension) {

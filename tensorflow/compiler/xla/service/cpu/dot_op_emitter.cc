@@ -431,10 +431,10 @@ void DotOpEmitter::EmitNaiveLlvmIrGemm() {
   llvm_ir::ForLoopNest loop_nest(llvm_ir::IrName(dot_hlo_name_), b_);
   std::vector<llvm::Value*> lhs_multi_index =
       loop_nest.EmitOperandArrayLoopNest(
-          lhs_array_, /*dimension_to_skip=*/lhs_reduction_dimension, "lhs");
+          lhs_array_, /*dimension_to_skip=*/lhs_reduction_dimension, "lhs", true);
   std::vector<llvm::Value*> rhs_multi_index =
       loop_nest.EmitOperandArrayLoopNest(
-          rhs_array_, /*dimension_to_skip=*/rhs_reduction_dimension, "rhs");
+          rhs_array_, /*dimension_to_skip=*/rhs_reduction_dimension, "rhs", true);
 
   // Create the loop which does the sum of products reduction.
   //
@@ -821,6 +821,9 @@ DotImplementationStrategy GetDotImplementationStrategy(
     const HloModuleConfig& config, const DotInfo& dot_info,
     const TargetMachineFeatures& target_machine_features) {
   PrimitiveType element_type = dot_info.result_shape.element_type();
+  // TODO: Remove this hack, which forces the use of Tapir.
+  return true;
+
   // Any Matrix-Vector product of floating point or integral type, or
   // a transpose-dot fusion of the same can be lowered to a tiled LLVM
   // IR implementation.
