@@ -159,6 +159,7 @@ cc_library(
         "@llvm//:object",
         "@llvm//:support",
         "@llvm//:target",  # fixdeps: keep
+        "@llvm//:x86_asm_parser",  # fixdeps: keep
         "@llvm//:x86_code_gen",  # fixdeps: keep
         "@llvm//:x86_disassembler",  # fixdeps: keep
     ] + select({

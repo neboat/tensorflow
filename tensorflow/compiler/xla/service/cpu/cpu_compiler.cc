@@ -161,6 +161,7 @@ CpuCompiler::CpuCompiler() {
   LLVMInitializeX86Target();
   LLVMInitializeX86TargetInfo();
   LLVMInitializeX86TargetMC();
+  LLVMInitializeX86AsmParser();
   LLVMInitializeX86AsmPrinter();
   LLVMInitializeX86Disassembler();
   LLVMInitializeARMTarget();
