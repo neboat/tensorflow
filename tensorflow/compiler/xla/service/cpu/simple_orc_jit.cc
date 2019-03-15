@@ -28,6 +28,7 @@ limitations under the License.
 #include "llvm/IR/Mangler.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/Host.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/orc_jit_memory_mapper.h"
@@ -114,7 +115,7 @@ SimpleOrcJIT::SimpleOrcJIT(
       object_layer_(
           execution_session_,
           [this](llvm::orc::VModuleKey) {
-            llvm::orc::LegacyRTDyldObjectLinkingLayer::Resources result;
+            llvm::orc::RTDyldObjectLinkingLayer::Resources result;
             result.MemMgr = std::make_shared<llvm::SectionMemoryManager>(
                 orc_jit_memory_mapper::GetInstance());
             result.Resolver = symbol_resolver_;
