@@ -627,7 +627,6 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   auto llvm_module =
       absl::make_unique<llvm::Module>("__compute_module", *llvm_context);
 
-
   if (!jit_)
     jit_ = std::move(absl::make_unique<SimpleOrcJIT>(
         CompilerTargetOptions(module->config()),
@@ -734,9 +733,21 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
 
   // jit_ compile the LLVM IR module to in-memory machine code.
   jit_->AddModule(std::move(llvm_module), std::move(llvm_context));
+
+  // Call the CSI constructor.
+  auto csiConstructorSymbol = jit_->FindCompiledSymbol("csirt.unit_ctor");
+  if (csiConstructorSymbol) {
+    void* csiConstructor = (void*) cantFail(csiConstructorSymbol.getAddress());
+    void (*fn)(void) = (void (*)(void))csiConstructor;
+    fn();
+  } else if (options::RunCilksan(module->config()) || options::RunCSI(module->config())) {
+    VLOG(3) << "Warning: CSI constructor not found?\n";
+  }
+
   cpu_executable.reset(new CpuExecutable(
-      jit_->FindCompiledSymbol(function_name), std::move(assignment), std::move(module), function_name,
-      std::move(hlo_profile_printer_data), std::move(hlo_profile_index_map)));
+      jit_->FindCompiledSymbol(function_name), std::move(assignment),
+      std::move(module), function_name, std::move(hlo_profile_printer_data),
+      std::move(hlo_profile_index_map)));
 
   if (embed_ir_in_executable) {
     static_cast<CpuExecutable&>(*cpu_executable)
@@ -744,6 +755,7 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   }
 
   VLOG(1) << "Compilation finished";
+
   jit_mutex_.unlock();
   return std::move(cpu_executable);
 }

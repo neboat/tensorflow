@@ -203,7 +203,9 @@ void CompilerFunctor::AddTargetInfoPasses(
 
 static void addComprehensiveStaticInstrumentationPass(const llvm::PassManagerBuilder &builder,
                        llvm::legacy::PassManagerBase &pm) {
-  pm.add(llvm::createComprehensiveStaticInstrumentationLegacyPass());
+  llvm::CSIOptions options;
+  options.jitMode = true;
+  pm.add(llvm::createComprehensiveStaticInstrumentationLegacyPass(options));
 
   // CSI inserts complex instrumentation that mostly follows the logic of the
   // original code, but operates on "shadow" values.  It can benefit from
@@ -220,7 +222,7 @@ static void addComprehensiveStaticInstrumentationPass(const llvm::PassManagerBui
 
 static void addCilkSanitizerPass(const llvm::PassManagerBuilder &builder,
                                  llvm::legacy::PassManagerBase &pm) {
-  pm.add(llvm::createCilkSanitizerLegacyPass());
+  pm.add(llvm::createCilkSanitizerLegacyPass(true));
 
   // CilkSanitizer inserts complex instrumentation that mostly follows the logic
   // of the original code, but operates on "shadow" values.  It can benefit from

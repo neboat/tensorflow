@@ -145,16 +145,28 @@ SimpleOrcJIT::SimpleOrcJIT(
           << " features: " << target_machine_->getTargetFeatureString().str();
   string error;
   auto dy_lib =
-    llvm::sys::DynamicLibrary::getPermanentLibrary("libcilkrts.so.5", &error);
+      llvm::sys::DynamicLibrary::getPermanentLibrary("libcilkrts.so.5", &error);
   if (!dy_lib.isValid())
     VLOG(1) << "Error loading Cilk runtime system: " << error << "\n";
 
   if (run_cilksan) {
-    dy_lib =
-      llvm::sys::DynamicLibrary::getPermanentLibrary(
-          "libclang_rt.cilksan-x86_64.so", &error);
-    if (!dy_lib.isValid())
+    dy_lib = llvm::sys::DynamicLibrary::getPermanentLibrary(
+        "libclang_rt.cilksan-x86_64.so",
+        &error);
+    if (!dy_lib.isValid()) {
       VLOG(1) << "Error loading Cilksan library: " << error << "\n";
+      exit(-1);
+    }
+  }
+
+  if (run_csi) {
+    dy_lib = llvm::sys::DynamicLibrary::getPermanentLibrary(
+        "libclang_rt.csi-x86_64.so",
+        &error);
+    if (!dy_lib.isValid()) {
+      VLOG(1) << "Error loading Cilksan library: " << error << "\n";
+      exit(-1);
+    }
   }
 
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
