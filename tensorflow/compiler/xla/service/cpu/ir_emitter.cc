@@ -615,10 +615,10 @@ Status IrEmitter::HandleSort(HloInstruction* hlo) {
     values = llvm::Constant::getNullValue(b_.getInt8PtrTy()->getPointerTo());
     sizes = llvm::Constant::getNullValue(b_.getInt32Ty()->getPointerTo());
   } else {
-    values = llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+    values = llvm_ir::EmitAllocaAtTaskEntryWithCount(
         b_.getInt8PtrTy(), b_.getInt32(sort->values_count()),
         "cc_values_alloca", &b_);
-    sizes = llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+    sizes = llvm_ir::EmitAllocaAtTaskEntryWithCount(
         b_.getInt32Ty(), b_.getInt32(sort->values_count()), "cc_sizes_alloca",
         &b_);
     for (int64 i = 0; i < sort->values_count(); ++i) {
@@ -673,7 +673,7 @@ StatusOr<llvm::Value*> IrEmitter::EmitTargetElementLoopBodyForReduceWindow(
   // We fold inputs into the accumulator and initialize it to
   // the initial value on the reduce_window.
   PrimitiveType operand_element_type = operand->shape().element_type();
-  llvm::Value* accumulator_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* accumulator_address = llvm_ir::EmitAllocaAtTaskEntry(
       llvm_ir::PrimitiveTypeToIrType(operand_element_type, module_),
       "reduce_window_accumulator_address", &b_,
       MinimumAlignmentForPrimitiveType(operand_element_type));
@@ -826,14 +826,14 @@ Status IrEmitter::HandleSelectAndScatter(HloInstruction* select_and_scatter) {
 
   // Allocate space to keep the currently selected value, its index, and
   // the boolean initialized_flag, which is initially set to false.
-  llvm::Value* selected_value_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* selected_value_address = llvm_ir::EmitAllocaAtTaskEntry(
       llvm_ir::PrimitiveTypeToIrType(operand_element_type, module_),
       "selected_value_address", &b_,
       MinimumAlignmentForPrimitiveType(operand_element_type));
   llvm::Value* selected_index_address =
-      llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+      llvm_ir::EmitAllocaAtTaskEntryWithCount(
           b_.getInt64Ty(), b_.getInt32(rank), "selected_index_address", &b_);
-  llvm::Value* initialized_flag_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* initialized_flag_address = llvm_ir::EmitAllocaAtTaskEntry(
       b_.getInt1Ty(), "initialized_flag_address", &b_);
   Store(b_.getInt1(false), initialized_flag_address);
 
@@ -999,7 +999,7 @@ StatusOr<llvm::Value*> IrEmitter::EmitTargetElementLoopBodyForConvolution(
   PrimitiveType lhs_element_type = lhs->shape().element_type();
   llvm::Type* lhs_llvm_type =
       llvm_ir::PrimitiveTypeToIrType(lhs_element_type, module_);
-  llvm::Value* sum_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* sum_address = llvm_ir::EmitAllocaAtTaskEntry(
       lhs_llvm_type, "convolution_sum_address", &b_,
       MinimumAlignmentForPrimitiveType(lhs_element_type));
   llvm::Value* constant_zero = llvm::Constant::getNullValue(lhs_llvm_type);
@@ -1599,7 +1599,7 @@ IrEmitter::EmitInnerLoopForVectorizedReduction(
   ShardedVector accumulator;
   accumulator.reserve(accumulator_type.size());
   for (auto accumulator_shard_type : accumulator_type) {
-    accumulator.push_back(llvm_ir::EmitAllocaAtFunctionEntry(
+    accumulator.push_back(llvm_ir::EmitAllocaAtTaskEntry(
         accumulator_shard_type, "accumulator", &b_, 0));
   }
 
@@ -1844,7 +1844,7 @@ StatusOr<llvm::Value*> IrEmitter::EmitTargetElementLoopBodyForReduce(
 
   // Initialize an accumulator with init_value.
   PrimitiveType accumulator_type = reduce->shape().element_type();
-  llvm::AllocaInst* accumulator_addr = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::AllocaInst* accumulator_addr = llvm_ir::EmitAllocaAtTaskEntry(
       llvm_ir::PrimitiveTypeToIrType(accumulator_type, module_), "accumulator",
       &b_, MinimumAlignmentForPrimitiveType(accumulator_type));
   llvm::Value* init_value_addr = GetEmittedValueFor(init_value);
@@ -2248,7 +2248,7 @@ Status IrEmitter::HandleCustomCall(HloInstruction* custom_call) {
   absl::string_view custom_call_target(custom_call->custom_call_target());
   llvm::Type* i8_ptr_type = b_.getInt8PtrTy();
   llvm::AllocaInst* operands_alloca =
-      llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+      llvm_ir::EmitAllocaAtTaskEntryWithCount(
           i8_ptr_type, b_.getInt32(operands.size()), "cc_operands_alloca", &b_);
   for (size_t i = 0; i < operands.size(); ++i) {
     const HloInstruction* operand = operands[i];
@@ -2675,7 +2675,7 @@ llvm::Value* IrEmitter::ProfilingState::ReadCycleCounter(llvm::IRBuilder<>* b) {
       llvm::Intrinsic::getDeclaration(module, llvm::Intrinsic::x86_rdtscp);
   if (!aux_i8ptr_) {
     llvm::AllocaInst* rdtscp_aux =
-        llvm_ir::EmitAllocaAtFunctionEntry(b->getInt32Ty(), "rdtscp_aux", b);
+        llvm_ir::EmitAllocaAtTaskEntry(b->getInt32Ty(), "rdtscp_aux", b);
     aux_i8ptr_ = b->CreateBitCast(rdtscp_aux, b->getInt8PtrTy());
   }
   llvm::ConstantInt* alloca_size = b->getInt64(4);
@@ -2821,7 +2821,7 @@ llvm::Value* IrEmitter::EmitThreadLocalBufferPointer(
         compute_function_->function(), slice};
     auto buf_it = thread_local_buffers_.find(key);
     if (buf_it == thread_local_buffers_.end()) {
-      llvm::Value* buffer = llvm_ir::EmitAllocaAtFunctionEntry(
+      llvm::Value* buffer = llvm_ir::EmitAllocaAtTaskEntry(
           IrShapeType(shape), absl::StrCat("thread_local", slice.ToString()),
           &b_, MinimumAlignmentForShape(target_shape));
       auto it_inserted_pair = thread_local_buffers_.insert({key, buffer});
@@ -2999,13 +2999,13 @@ llvm::Value* IrEmitter::EmitThreadLocalCall(
   std::vector<llvm::Value*> parameter_addrs;
   for (llvm::Value* parameter : parameters) {
     CHECK(!parameter->getType()->isPointerTy());
-    llvm::Value* parameter_addr = llvm_ir::EmitAllocaAtFunctionEntry(
+    llvm::Value* parameter_addr = llvm_ir::EmitAllocaAtTaskEntry(
         parameter->getType(), "arg_addr", &b_);
     Store(parameter, parameter_addr);
     parameter_addrs.push_back(parameter_addr);
   }
 
-  llvm::Value* return_value_buffer = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* return_value_buffer = llvm_ir::EmitAllocaAtTaskEntry(
       llvm_ir::PrimitiveTypeToIrType(return_type, module_),
       absl::StrCat(name, "_retval_addr"), &b_,
       MinimumAlignmentForPrimitiveType(return_type));
