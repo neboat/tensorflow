@@ -645,10 +645,10 @@ Status IrEmitter::HandleSort(HloInstruction* hlo) {
           .getCallee());
   key_value_sort_func->setCallingConv(llvm::CallingConv::C);
   key_value_sort_func->setDoesNotThrow();
-  llvm::Value* values = llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+  llvm::Value* values = llvm_ir::EmitAllocaAtTaskEntryWithCount(
       b_.getInt8PtrTy(), b_.getInt32(sort->operand_count()), "cc_values_alloca",
       &b_);
-  llvm::Value* sizes = llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+  llvm::Value* sizes = llvm_ir::EmitAllocaAtTaskEntryWithCount(
       b_.getInt32Ty(), b_.getInt32(sort->operand_count()), "cc_sizes_alloca",
       &b_);
   for (int64 i = 0; i < sort->operand_count(); ++i) {
@@ -704,7 +704,7 @@ StatusOr<llvm::Value*> IrEmitter::EmitElementalReduceWindow(
   // We fold inputs into the accumulator and initialize it to
   // the initial value on the reduce_window.
   PrimitiveType operand_element_type = operand->shape().element_type();
-  llvm::Value* accumulator_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* accumulator_address = llvm_ir::EmitAllocaAtTaskEntry(
       llvm_ir::PrimitiveTypeToIrType(operand_element_type, module_),
       "reduce_window_accumulator_address", &b_,
       MinimumAlignmentForPrimitiveType(operand_element_type));
@@ -852,14 +852,14 @@ Status IrEmitter::HandleSelectAndScatter(HloInstruction* select_and_scatter) {
 
   // Allocate space to keep the currently selected value, its index, and
   // the boolean initialized_flag, which is initially set to false.
-  llvm::Value* selected_value_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* selected_value_address = llvm_ir::EmitAllocaAtTaskEntry(
       llvm_ir::PrimitiveTypeToIrType(operand_element_type, module_),
       "selected_value_address", &b_,
       MinimumAlignmentForPrimitiveType(operand_element_type));
   llvm::Value* selected_index_address =
-      llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+      llvm_ir::EmitAllocaAtTaskEntryWithCount(
           b_.getInt64Ty(), b_.getInt32(rank), "selected_index_address", &b_);
-  llvm::Value* initialized_flag_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* initialized_flag_address = llvm_ir::EmitAllocaAtTaskEntry(
       b_.getInt1Ty(), "initialized_flag_address", &b_);
   Store(b_.getInt1(false), initialized_flag_address);
 
@@ -1028,7 +1028,7 @@ StatusOr<llvm::Value*> IrEmitter::EmitElementalConvolution(
   PrimitiveType lhs_element_type = lhs->shape().element_type();
   llvm::Type* lhs_llvm_type =
       llvm_ir::PrimitiveTypeToIrType(lhs_element_type, module_);
-  llvm::Value* sum_address = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* sum_address = llvm_ir::EmitAllocaAtTaskEntry(
       lhs_llvm_type, "convolution_sum_address", &b_,
       MinimumAlignmentForPrimitiveType(lhs_element_type));
   llvm::Value* constant_zero = llvm::Constant::getNullValue(lhs_llvm_type);
@@ -1628,7 +1628,7 @@ IrEmitter::EmitInnerLoopForVectorizedReduction(
   ShardedVector accumulator;
   accumulator.reserve(accumulator_type.size());
   for (auto accumulator_shard_type : accumulator_type) {
-    accumulator.push_back(llvm_ir::EmitAllocaAtFunctionEntry(
+    accumulator.push_back(llvm_ir::EmitAllocaAtTaskEntry(
         accumulator_shard_type, "accumulator", &b_, 0));
   }
 
@@ -1899,7 +1899,7 @@ StatusOr<llvm::Value*> IrEmitter::EmitElementalReduce(
     accumulator_types.push_back(accumulator_llvm_type);
 
     // Initialize an accumulator with init_value.
-    llvm::AllocaInst* accumulator_addr = llvm_ir::EmitAllocaAtFunctionEntry(
+    llvm::AllocaInst* accumulator_addr = llvm_ir::EmitAllocaAtTaskEntry(
         accumulator_llvm_type, "accumulator_" + std::to_string(i), &b_,
         MinimumAlignmentForPrimitiveType(accumulator_type));
     TF_ASSIGN_OR_RETURN(
@@ -2332,7 +2332,7 @@ Status IrEmitter::HandleCustomCall(HloInstruction* custom_call) {
   absl::Span<HloInstruction* const> operands(custom_call->operands());
   llvm::Type* i8_ptr_type = b_.getInt8PtrTy();
   llvm::AllocaInst* operands_alloca =
-      llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+      llvm_ir::EmitAllocaAtTaskEntryWithCount(
           i8_ptr_type, b_.getInt32(operands.size()), "cc_operands_alloca", &b_);
   for (size_t i = 0; i < operands.size(); ++i) {
     const HloInstruction* operand = operands[i];
@@ -2849,7 +2849,7 @@ llvm::Value* IrEmitter::ProfilingState::ReadCycleCounter(llvm::IRBuilder<>* b) {
       llvm::Intrinsic::getDeclaration(module, llvm::Intrinsic::x86_rdtscp);
   if (!aux_i8ptr_) {
     llvm::AllocaInst* rdtscp_aux =
-        llvm_ir::EmitAllocaAtFunctionEntry(b->getInt32Ty(), "rdtscp_aux", b);
+        llvm_ir::EmitAllocaAtTaskEntry(b->getInt32Ty(), "rdtscp_aux", b);
     aux_i8ptr_ = b->CreateBitCast(rdtscp_aux, b->getInt8PtrTy());
   }
   llvm::ConstantInt* alloca_size = b->getInt64(4);
@@ -3051,7 +3051,7 @@ llvm::Value* IrEmitter::EmitThreadLocalBufferPointer(
         compute_function_->function(), slice};
     auto buf_it = thread_local_buffers_.find(key);
     if (buf_it == thread_local_buffers_.end()) {
-      llvm::Value* buffer = llvm_ir::EmitAllocaAtFunctionEntry(
+      llvm::Value* buffer = llvm_ir::EmitAllocaAtTaskEntry(
           IrShapeType(shape), absl::StrCat("thread_local", slice.ToString()),
           &b_, MinimumAlignmentForShape(target_shape));
       auto it_inserted_pair = thread_local_buffers_.insert({key, buffer});
@@ -3239,7 +3239,7 @@ std::vector<llvm::Value*> IrEmitter::EmitThreadLocalCall(
   std::vector<llvm::Value*> parameter_addrs;
   for (llvm::Value* parameter : parameters) {
     CHECK(!parameter->getType()->isPointerTy());
-    llvm::Value* parameter_addr = llvm_ir::EmitAllocaAtFunctionEntry(
+    llvm::Value* parameter_addr = llvm_ir::EmitAllocaAtTaskEntry(
         parameter->getType(), "arg_addr", &b_);
     Store(parameter, parameter_addr);
     parameter_addrs.push_back(parameter_addr);
@@ -3252,7 +3252,7 @@ std::vector<llvm::Value*> IrEmitter::EmitThreadLocalCall(
       is_scalar_return
           ? MinimumAlignmentForPrimitiveType(return_shape.element_type())
           : 0;
-  llvm::Value* return_value_buffer = llvm_ir::EmitAllocaAtFunctionEntry(
+  llvm::Value* return_value_buffer = llvm_ir::EmitAllocaAtTaskEntry(
       return_value_buffer_type, retval_alloca_name, &b_, retval_alignment);
 
   std::vector<llvm::Value*> allocas_for_returned_scalars;
@@ -3264,7 +3264,7 @@ std::vector<llvm::Value*> IrEmitter::EmitThreadLocalCall(
         << "Multivalue function can not return more than 1000 elements to avoid"
         << " stack smashing";
     allocas_for_returned_scalars =
-        llvm_ir::EmitTupleAllocasAtFunctionEntry(return_shape, &b_);
+        llvm_ir::EmitTupleAllocasAtTaskEntry(return_shape, &b_);
     llvm_ir::IrArray tuple_array(return_value_buffer, return_shape);
 
     EmitTuple(tuple_array, allocas_for_returned_scalars, &b_);

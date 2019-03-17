@@ -23,6 +23,7 @@ limitations under the License.
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_runtime.h"
 #include "tensorflow/compiler/xla/service/cpu/ir_emission_utils.h"
 #include "tensorflow/compiler/xla/service/cpu/target_machine_features.h"
@@ -467,8 +468,9 @@ void DotOpEmitter::EmitNaiveLlvmIrGemm() {
 
   // Function entry basic block.
   // - Emit alloca for accumulator
-  llvm::Function* func = reduction_loop->GetPreheaderBasicBlock()->getParent();
-  SetToFirstInsertPoint(&func->getEntryBlock(), b_);
+  llvm::BasicBlock* task_entry =
+    llvm::GetDetachedCtx(reduction_loop->GetPreheaderBasicBlock());
+  SetToFirstInsertPoint(task_entry, b_);
   llvm::Type* accum_type = target_array_.GetElementLlvmType();
   llvm::Value* accum_address =
       b_->CreateAlloca(accum_type, /*ArraySize=*/nullptr, "accum_address");

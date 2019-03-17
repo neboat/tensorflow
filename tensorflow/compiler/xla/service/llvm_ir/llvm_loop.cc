@@ -23,6 +23,7 @@ limitations under the License.
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "tensorflow/compiler/xla/service/llvm_ir/llvm_util.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/types.h"
@@ -113,9 +114,9 @@ void ForLoop::Emit(llvm::IRBuilder<>* b) {
   // Emit alloca for the induction variable. We do this at the entry to the
   // basic block to ensure the alloc only executes once per function (we could
   // be emitting a nested loop).
-  llvm::Function* func = preheader_bb_->getParent();
-  b->SetInsertPoint(&func->getEntryBlock(),
-                    func->getEntryBlock().getFirstInsertionPt());
+  llvm::BasicBlock* task_entry = llvm::GetDetachedCtx(preheader_bb_);
+  b->SetInsertPoint(task_entry,
+                    task_entry->getFirstInsertionPt());
   llvm::Value* indvar_address = b->CreateAlloca(
       start_index_->getType(), nullptr, GetQualifiedName("indvar_address"));
 

@@ -179,6 +179,25 @@ llvm::AllocaInst* EmitAllocaAtFunctionEntryWithCount(llvm::Type* type,
                                                      llvm::IRBuilder<>* b,
                                                      int alignment = 0);
 
+// Inserts an allocate of the requested type at the entry point of the task that
+// the builder is currently building. The insert point of the builder is set to
+// the same place after calling this function as before.
+//
+// This can be useful to avoid e.g. executing an alloca every time through a
+// loop.
+llvm::AllocaInst* EmitAllocaAtTaskEntry(llvm::Type* type,
+                                        absl::string_view name,
+                                        llvm::IRBuilder<>* b,
+                                        int alignment = 0);
+
+// As EmitAllocaAtTaskEntry, but allocates element_count entries
+// instead of a single element.
+llvm::AllocaInst* EmitAllocaAtTaskEntryWithCount(llvm::Type* type,
+                                                 llvm::Value* element_count,
+                                                 absl::string_view name,
+                                                 llvm::IRBuilder<>* b,
+                                                 int alignment = 0);
+
 // Creates a basic block with the same context and function as for the
 // builder. Inserts at the end of the function if insert_before is
 // null.

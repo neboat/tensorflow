@@ -29,6 +29,7 @@ limitations under the License.
 #include "llvm/IR/Operator.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "tensorflow/compiler/xla/layout_util.h"
 #include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/service/cpu/cpu_options.h"
@@ -291,6 +292,29 @@ llvm::AllocaInst* EmitAllocaAtFunctionEntryWithCount(llvm::Type* type,
   llvm::Function* function = b->GetInsertBlock()->getParent();
   b->SetInsertPoint(&function->getEntryBlock(),
                     function->getEntryBlock().getFirstInsertionPt());
+  llvm::AllocaInst* alloca =
+      b->CreateAlloca(type, element_count, AsStringRef(name));
+  if (alignment != 0) {
+    alloca->setAlignment(alignment);
+  }
+  return alloca;
+}
+
+llvm::AllocaInst* EmitAllocaAtTaskEntry(llvm::Type* type,
+                                        absl::string_view name,
+                                        llvm::IRBuilder<>* b,
+                                        int alignment) {
+  return EmitAllocaAtTaskEntryWithCount(type, nullptr, name, b, alignment);
+}
+
+llvm::AllocaInst* EmitAllocaAtTaskEntryWithCount(llvm::Type* type,
+                                                 llvm::Value* element_count,
+                                                 absl::string_view name,
+                                                 llvm::IRBuilder<>* b,
+                                                 int alignment) {
+  llvm::IRBuilder<>::InsertPointGuard guard(*b);
+  llvm::BasicBlock* task_entry = llvm::GetDetachedCtx(b->GetInsertBlock());
+  b->SetInsertPoint(task_entry, task_entry->getFirstInsertionPt());
   llvm::AllocaInst* alloca =
       b->CreateAlloca(type, element_count, AsStringRef(name));
   if (alignment != 0) {

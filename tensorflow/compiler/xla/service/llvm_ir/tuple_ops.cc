@@ -20,6 +20,7 @@ limitations under the License.
 #include <vector>
 
 #include "llvm/IR/Instructions.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "tensorflow/compiler/xla/service/llvm_ir/llvm_util.h"
 #include "tensorflow/compiler/xla/shape_util.h"
 #include "tensorflow/compiler/xla/types.h"
@@ -88,6 +89,31 @@ std::vector<llvm::Value*> EmitTupleAllocasAtFunctionEntry(
   llvm::Function* function = b->GetInsertBlock()->getParent();
   b->SetInsertPoint(&function->getEntryBlock(),
                     function->getEntryBlock().getFirstInsertionPt());
+  CHECK(tuple_shape.IsTuple());
+  int tuple_size = tuple_shape.tuple_shapes_size();
+
+  std::vector<llvm::Value*> generated_allocas;
+  for (int i = 0; i < tuple_size; i++) {
+    const Shape& element_shape = tuple_shape.tuple_shapes(i);
+    CHECK(ShapeUtil::IsScalar(element_shape));
+    llvm::Type* type =
+        llvm_ir::PrimitiveTypeToIrType(element_shape.element_type(), module);
+    llvm::AllocaInst* alloca = b->CreateAlloca(
+        type,
+        /*ArraySize=*/nullptr, AsStringRef(absl::StrCat("tuple_element_", i)));
+    generated_allocas.push_back(alloca);
+  }
+
+  return generated_allocas;
+}
+
+std::vector<llvm::Value*> EmitTupleAllocasAtTaskEntry(
+    const Shape& tuple_shape, llvm::IRBuilder<>* b) {
+  llvm::Module* module = b->GetInsertBlock()->getModule();
+
+  llvm::IRBuilder<>::InsertPointGuard guard(*b);
+  llvm::BasicBlock* task_entry = llvm::GetDetachedCtx(b->GetInsertBlock());
+  b->SetInsertPoint(task_entry, task_entry->getFirstInsertionPt());
   CHECK(tuple_shape.IsTuple());
   int tuple_size = tuple_shape.tuple_shapes_size();
 

@@ -146,11 +146,11 @@ bool TapirAssignment::CanUseTapir(
   auto opcode = instruction->opcode();
   if (opcode == HloOpcode::kParameter || opcode == HloOpcode::kConstant ||
       opcode == HloOpcode::kCall || opcode == HloOpcode::kCustomCall ||
-      opcode == HloOpcode::kDot || opcode == HloOpcode::kSelectAndScatter ||
+      /* opcode == HloOpcode::kDot ||*/ opcode == HloOpcode::kSelectAndScatter ||
       opcode == HloOpcode::kGetTupleElement || opcode == HloOpcode::kBitcast ||
       opcode == HloOpcode::kFft || opcode == HloOpcode::kInfeed ||
       opcode == HloOpcode::kOutfeed || opcode == HloOpcode::kRng ||
-      opcode == HloOpcode::kSort ||
+      opcode == HloOpcode::kSort || /*opcode == HloOpcode::kReduce ||*/
       (opcode == HloOpcode::kConvolution &&
        PotentiallyImplementedAsEigenConvolution(*instruction,
                                                 target_machine_features_)) ||
