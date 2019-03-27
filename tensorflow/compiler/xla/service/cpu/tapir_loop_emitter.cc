@@ -56,7 +56,7 @@ TapirLoopEmitter::EmitIndexAndSetExitBasicBlock(absl::string_view loop_name,
         /*suffix=*/absl::StrFormat("dim.%d", dimension),
 	/*unroll_mode=*/xla::llvm_ir::UnrollMode::kDefaultUnroll,
 	/*prevent_vectorization=*/false,
-	/*tapir_loop=*/true, /*needs_sync=*/outermost_loop);
+	/*tapir_loop=*/true, /*needs_sync=*/true);
     array_index[dimension] = loop->GetIndVarValue();
     outermost_loop = false;
   }
