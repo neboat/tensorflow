@@ -201,7 +201,7 @@ std::vector<llvm::Value*> GetArrayFunctionCallArguments(
     parameter_addresses_buffer =
         llvm::Constant::getNullValue(b->getInt8PtrTy()->getPointerTo());
   } else {
-    parameter_addresses_buffer = llvm_ir::EmitAllocaAtFunctionEntryWithCount(
+    parameter_addresses_buffer = llvm_ir::EmitAllocaAtTaskEntryWithCount(
         b->getInt8PtrTy(), b->getInt32(parameter_addresses.size()),
         absl::StrCat(name, "_parameter_addresses"), b);
 
