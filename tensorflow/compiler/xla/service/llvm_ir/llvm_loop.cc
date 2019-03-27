@@ -267,13 +267,15 @@ std::unique_ptr<ForLoop> ForLoopNest::AddLoop(
         llvm_ir::EmitCallToIntrinsic(llvm::Intrinsic::syncregion_start, {}, {},
                                      b_);
     } else {
-      // auto savedIP = b_->saveIP();
+      auto savedIP = b_->saveIP();
       // b_->SetInsertPoint(&func->getEntryBlock(),
       //                    func->getEntryBlock().getFirstInsertionPt());
+      llvm::BasicBlock* task_entry = llvm::GetDetachedCtx(b_->GetInsertBlock());
+      b_->SetInsertPoint(task_entry, task_entry->getFirstInsertionPt());
       sync_reg =
         llvm_ir::EmitCallToIntrinsic(llvm::Intrinsic::syncregion_start, {}, {},
                                      b_);
-      // b_->restoreIP(savedIP);
+      b_->restoreIP(savedIP);
     }
   }
   std::unique_ptr<ForLoop> loop(new ForLoop(
