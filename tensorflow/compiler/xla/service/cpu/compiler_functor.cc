@@ -242,6 +242,38 @@ static void addCilkSanitizerPass(const llvm::PassManagerBuilder &builder,
   }
 }
 
+static llvm::CSIOptions getCSIOptionsForCilkscale() {
+  llvm::CSIOptions options;
+  // Disable CSI hooks that Cilkscale doesn't need
+  options.InstrumentFuncEntryExit = false;
+  options.InstrumentBasicBlocks = false;
+  options.InstrumentMemoryAccesses = false;
+  options.InstrumentCalls = false;
+  options.InstrumentAtomics = false;
+  options.InstrumentMemIntrinsics = false;
+  options.InstrumentAllocas = false;
+  return options;
+}
+
+static void addCilkscaleInstrumentation(const llvm::PassManagerBuilder &builder,
+					llvm::legacy::PassManagerBase &pm) {
+  llvm::CSIOptions options = getCSIOptionsForCilkscale();
+  options.jitMode = true;
+  pm.add(llvm::createComprehensiveStaticInstrumentationLegacyPass(options));
+
+  // CSI inserts complex instrumentation that mostly follows the logic of the
+  // original code, but operates on "shadow" values.  It can benefit from
+  // re-running some general purpose optimization passes.
+  if (builder.OptLevel > 0) {
+    pm.add(llvm::createEarlyCSEPass());
+    pm.add(llvm::createReassociatePass());
+    pm.add(llvm::createLICMPass());
+    pm.add(llvm::createGVNPass());
+    pm.add(llvm::createInstructionCombiningPass());
+    pm.add(llvm::createDeadStoreEliminationPass());
+  }
+}
+
 void CompilerFunctor::AddOptimizationPasses(
     llvm::legacy::PassManagerBase* module_passes,
     llvm::legacy::FunctionPassManager* function_passes, unsigned opt_level,
@@ -270,11 +302,16 @@ void CompilerFunctor::AddOptimizationPasses(
     builder.addExtension(llvm::PassManagerBuilder::EP_TapirLate,
                          addCilkSanitizerPass);
 
+  if (run_cilkscale_)
+    builder.addExtension(llvm::PassManagerBuilder::EP_TapirLate,
+                         addCilkscaleInstrumentation);
+
   if (run_csi_)
   {
     builder.addExtension(llvm::PassManagerBuilder::EP_TapirLate,
                          addComprehensiveStaticInstrumentationPass);
   }
+
 
   builder.populateFunctionPassManager(*function_passes);
   builder.populateModulePassManager(*module_passes);

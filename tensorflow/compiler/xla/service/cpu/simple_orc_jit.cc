@@ -99,7 +99,7 @@ SimpleOrcJIT::SimpleOrcJIT(const llvm::TargetOptions& target_options,
                            bool disable_expensive_passes,
                            LLVMCompiler::ModuleHook pre_optimization_hook,
                            LLVMCompiler::ModuleHook post_optimization_hook,
-                           bool run_cilksan, bool run_csi)
+                           bool run_cilksan, bool run_cilkscale, bool run_csi)
     : target_machine_(InferTargetMachineForJIT(target_options, opt_level)),
       disassembler_(*target_machine_),
       data_layout_(target_machine_->createDataLayout()),
@@ -126,7 +126,7 @@ SimpleOrcJIT::SimpleOrcJIT(const llvm::TargetOptions& target_options,
                                      enable_fast_math, disable_expensive_passes,
                                      std::move(pre_optimization_hook),
                                      std::move(post_optimization_hook),
-                                     run_cilksan, run_csi)) {
+                                     run_cilksan, run_cilkscale, run_csi)) {
   VLOG(1) << "CPU target: " << target_machine_->getTargetCPU().str()
           << " features: " << target_machine_->getTargetFeatureString().str();
   string error;
@@ -145,12 +145,22 @@ SimpleOrcJIT::SimpleOrcJIT(const llvm::TargetOptions& target_options,
     }
   }
 
+  if (run_cilkscale) {
+    dy_lib = llvm::sys::DynamicLibrary::getPermanentLibrary(
+        "libclang_rt.cilkscale-x86_64.so",
+        &error);
+    if (!dy_lib.isValid()) {
+      VLOG(1) << "Error loading Cilkscale library: " << error << "\n";
+      exit(-1);
+    }
+  }
+
   if (run_csi) {
     dy_lib = llvm::sys::DynamicLibrary::getPermanentLibrary(
         "libclang_rt.csi-x86_64.so",
         &error);
     if (!dy_lib.isValid()) {
-      VLOG(1) << "Error loading Cilksan library: " << error << "\n";
+      VLOG(1) << "Error loading CSI runtime library: " << error << "\n";
       exit(-1);
     }
   }

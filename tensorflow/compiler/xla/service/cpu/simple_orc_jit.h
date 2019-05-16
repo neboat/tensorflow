@@ -68,7 +68,7 @@ class SimpleOrcJIT {
                bool enable_fast_math, bool disable_expensive_passes,
                LLVMCompiler::ModuleHook pre_optimization_hook,
                LLVMCompiler::ModuleHook post_optimization_hook,
-               bool run_cilksan = false,
+               bool run_cilksan = false, bool run_cilkscale = false,
                bool run_csi = false);
 
   // Data layout this JIT was created with.

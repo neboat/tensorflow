@@ -37,7 +37,7 @@ class CompilerFunctor {
       bool disable_expensive_passes,
       LLVMCompiler::ModuleHook pre_optimization_hook = nullptr,
       LLVMCompiler::ModuleHook post_optimization_hook = nullptr,
-      bool run_cilksan = false,
+      bool run_cilksan = false, bool run_cilkscale = false,
       bool run_csi = false)
       : target_machine_(target_machine),
         disassembler_(CHECK_NOTNULL(disassembler)),
@@ -47,7 +47,7 @@ class CompilerFunctor {
         disable_expensive_passes_(disable_expensive_passes),
         pre_optimization_hook_(pre_optimization_hook),
         post_optimization_hook_(post_optimization_hook),
-        run_cilksan_(run_cilksan),
+        run_cilksan_(run_cilksan), run_cilkscale_(run_cilkscale),
         run_csi_(run_csi) {}
 
   // Compile a Module to an ObjectFile.
@@ -73,6 +73,7 @@ class CompilerFunctor {
   LLVMCompiler::ModuleHook pre_optimization_hook_;
   LLVMCompiler::ModuleHook post_optimization_hook_;
   const bool run_cilksan_;
+  const bool run_cilkscale_;
   const bool run_csi_;
 };
 

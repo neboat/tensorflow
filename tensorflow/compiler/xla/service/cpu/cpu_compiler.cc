@@ -572,6 +572,7 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
         module->config().debug_options().xla_llvm_disable_expensive_passes(),
         pre_optimization_ir_hook, post_optimization_ir_hook,
         options::RunCilksan(module->config()),
+        options::RunCilkscale(module->config()),
         options::RunCSI(module->config())));
 
   llvm_module->setDataLayout(jit_->data_layout());
@@ -681,7 +682,9 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
     void* csiConstructor = (void*) cantFail(csiConstructorSymbol.getAddress());
     void (*fn)(void) = (void (*)(void))csiConstructor;
     fn();
-  } else if (options::RunCilksan(module->config()) || options::RunCSI(module->config())) {
+  } else if (options::RunCilksan(module->config()) ||
+             options::RunCilkscale(module->config()) ||
+             options::RunCSI(module->config())) {
     VLOG(3) << "Warning: CSI constructor not found?\n";
   }
 
