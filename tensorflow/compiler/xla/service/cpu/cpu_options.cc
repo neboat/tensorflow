@@ -27,6 +27,7 @@ const char* const kXlaForceEnableExperimentalLlvmIrGemm =
     "xla_force_enable_experimental_llvm_ir_gemm";
 const char* const kLlvmIrGemmTileSize = "xla_llvm_ir_gemm_tile_size";
 const char* const kLlvmRunCilksan = "xla_llvm_run_cilksan";
+const char* const kLlvmRunCilkscale = "xla_llvm_run_cilkscale";
 const char* const kLlvmRunCSI = "xla_llvm_run_csi";
 
 }  // namespace
@@ -105,6 +106,12 @@ bool RunCilksan(const HloModuleConfig& config) {
   const auto& extra_options_map =
       config.debug_options().xla_backend_extra_options();
   return extra_options_map.count(kLlvmRunCilksan) > 0;
+}
+
+bool RunCilkscale(const HloModuleConfig& config) {
+  const auto& extra_options_map =
+      config.debug_options().xla_backend_extra_options();
+  return extra_options_map.count(kLlvmRunCilkscale) > 0;
 }
 
 bool RunCSI(const HloModuleConfig& config) {
