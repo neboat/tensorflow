@@ -85,6 +85,10 @@ class DotOpEmitter {
   // true if an LLVM IR implementation was emitted.
   bool EmitLlvmIrDotIfProfitable();
 
+  // Emits a call to a routine in the a loaded bitcode to perform the
+  // matrix multiply.
+  Status EmitCallToExternalBitcode();
+
   // Emits a call to the CPU runtime to perform the matrix multiply.
   Status EmitCallToRuntime();
 

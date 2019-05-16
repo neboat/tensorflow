@@ -302,7 +302,7 @@ llvm_all_cmake_vars = select({
     "@org_tensorflow//tensorflow:linux_ppc64le": cmake_var_string(
         _dict_add(
             cmake_vars,
-            llvm_target_cmake_vars("PowerPC", "powerpc64le-unknown-linux_gnu"),
+            llvm_target_cmake_vars("PowerPC", "powerpc64le-unknown-linux-gnu"),
             posix_cmake_vars,
             linux_cmake_vars,
         ),
@@ -317,7 +317,7 @@ llvm_all_cmake_vars = select({
     "//conditions:default": cmake_var_string(
         _dict_add(
             cmake_vars,
-            llvm_target_cmake_vars("X86", "x86_64-unknown-linux_gnu"),
+            llvm_target_cmake_vars("X86", "x86_64-unknown-linux-gnu"),
             posix_cmake_vars,
             linux_cmake_vars,
         ),

@@ -24,7 +24,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-llvm_host_triple = "x86_64-unknown-linux_gnu"
+llvm_host_triple = "x86_64-unknown-linux-gnu"
 
 llvm_targets = [
     "AArch64",

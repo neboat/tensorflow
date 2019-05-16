@@ -230,7 +230,10 @@ message DebugOptions {
   // Enable fast math with eigen in the HLO evaluator.
   bool xla_hlo_evaluator_use_fast_path = 106;
 
-  // Next id: 107
+  // Dump the compiler IR into this directory as individual files.
+  string xla_cpu_external_bitcode_path = 107;
+
+  // Next id: 108
 
   // Extra options to pass to the compilation backend (e.g. LLVM); specific
   // interpretation of these values is left to the backend.

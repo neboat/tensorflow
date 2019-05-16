@@ -1263,7 +1263,15 @@ Status DotOpEmitter::Emit() {
   CHECK_EQ(addend_array_, nullptr);
 
   if (PotentiallyImplementedAsEigenDot(dot_, target_machine_features_)) {
-    return EmitCallToRuntime();
+    MatMultDims mat_mult_dims = GetMatMultDims();
+    // PrimitiveType type = lhs_shape.element_type();
+    const int64_t coarsening_factor = 8192;
+    if (hlo_module_config_.use_external_bitcode())
+      if (/*(coarsening_factor / mat_mult_dims.k <= mat_mult_dims.n) &&*/
+          (coarsening_factor / mat_mult_dims.k <= mat_mult_dims.m))
+      // if (mat_mult_dims.k >= 64)
+	return EmitCallToExternalBitcode();
+    // return EmitCallToRuntime();
   }
 
   // Reduce along dimension 0 of the LHS and 1 of the RHS. Vectors are a special
@@ -1424,6 +1432,79 @@ Status DotOpEmitter::EmitScalarDot() {
     result = b_->CreateFMul(lhs_value, rhs_value);
   }
   target_array_.EmitWriteArrayElement(/*index=*/element_index, result, b_);
+  return Status::OK();
+}
+
+Status DotOpEmitter::EmitCallToExternalBitcode() {
+  // The matmul implementation from bitcode assumes a column-major
+  // layout of the matrices.  If the matrices are row major, then use
+  // the following identity to compute the product:
+  //
+  //   (A x B)^T = B^T x A^T
+  MatMultDims mat_mult_dims = GetMatMultDims();
+
+  CHECK_EQ(mat_mult_dims.lhs_column_major, mat_mult_dims.rhs_column_major);
+
+  const llvm_ir::IrArray* lhs = &lhs_array_;
+  const llvm_ir::IrArray* rhs = &rhs_array_;
+  bool transpose_lhs = mat_mult_dims.lhs_non_canonical;
+  bool transpose_rhs = mat_mult_dims.rhs_non_canonical;
+
+  if (!mat_mult_dims.lhs_column_major) {
+    std::swap(mat_mult_dims.m, mat_mult_dims.n);
+    std::swap(lhs, rhs);
+    std::swap(transpose_lhs, transpose_rhs);
+  }
+
+  llvm::Function* function = b_->GetInsertBlock()->getParent();
+  llvm::Module* module = function->getParent();
+
+  PrimitiveType type = target_array_.GetShape().element_type();
+  llvm::Type* float_type;
+  const char* fn_name;
+  switch (type) {
+    case F32:
+      fn_name = "matmul_f32";
+      // switch((transpose_lhs << 1) | transpose_rhs) {
+      // case 0: fn_name = "matmul_f32_0_0"; break;
+      // case 1: fn_name = "matmul_f32_0_1"; break;
+      // case 2: fn_name = "matmul_f32_1_0"; break;
+      // case 3: fn_name = "matmul_f32_1_1"; break;
+      // }
+      float_type = b_->getFloatTy();
+      break;
+    case F64:
+      fn_name = "matmul_f64";
+      // switch((transpose_lhs << 1) | transpose_rhs) {
+      // case 0: fn_name = "matmul_f64_0_0"; break;
+      // case 1: fn_name = "matmul_f64_0_1"; break;
+      // case 2: fn_name = "matmul_f64_1_0"; break;
+      // case 3: fn_name = "matmul_f64_1_1"; break;
+      // }
+      float_type = b_->getDoubleTy();
+      break;
+    default:
+      return Unimplemented("Invalid type %s for dot operation",
+                           PrimitiveType_Name(type));
+  }
+  llvm::Type* float_ptr_type = float_type->getPointerTo();
+
+  llvm::Function *matmul_func = module->getFunction(fn_name);
+  if (!matmul_func)
+    return Unimplemented("No function %s in external bitcode",
+			 fn_name);
+  matmul_func->setCallingConv(llvm::CallingConv::C);
+  matmul_func->setDoesNotThrow();
+  matmul_func->setOnlyAccessesArgMemory();
+
+  b_->CreateCall(
+      matmul_func,
+      {b_->CreateBitCast(target_array_.GetBasePointer(), float_ptr_type),
+       b_->CreateBitCast(lhs->GetBasePointer(), float_ptr_type),
+       b_->CreateBitCast(rhs->GetBasePointer(), float_ptr_type),
+       b_->getInt64(mat_mult_dims.m), b_->getInt64(mat_mult_dims.n),
+       b_->getInt64(mat_mult_dims.k), b_->getInt32(transpose_lhs),
+       b_->getInt32(transpose_rhs)});
   return Status::OK();
 }
 
@@ -1657,9 +1738,6 @@ bool ProfitableToImplementDotInTiledLlvmIr(const HloInstruction& dot) {
   // Any Matrix-Vector product of floating point or integral type, or
   // a transpose-dot fusion of the same can be lowered to a tiled LLVM
   // IR implementation.
-
-  // TODO: Remove this hack, which forces the use of Tapir.
-  return true;
 
   const Shape& shape = dot.shape();
   return shape.dimensions_size() == 2 &&

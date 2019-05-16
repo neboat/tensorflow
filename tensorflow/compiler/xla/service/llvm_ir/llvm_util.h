@@ -29,7 +29,9 @@ limitations under the License.
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SourceMgr.h"
 #include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/service/hlo_instruction.h"
 #include "tensorflow/compiler/xla/service/hlo_module_config.h"
@@ -337,6 +339,12 @@ llvm::GlobalVariable* GetOrCreateVariableForPhiloxRngState(
 // should rarely produce the same result.
 void IncrementVariableForPhiloxRngState(int64 value, llvm::Module* module,
                                         llvm::IRBuilder<>* b);
+
+// Load a given IR module into memory.  This code was copied from
+// tensorflow/compiler/xla/service/gpu/llvm_gpu_backend/utils.cc.
+std::unique_ptr<llvm::Module> LoadIRModule(const string& filename,
+                                           llvm::LLVMContext* llvm_context);
+
 }  // namespace llvm_ir
 }  // namespace xla
 
