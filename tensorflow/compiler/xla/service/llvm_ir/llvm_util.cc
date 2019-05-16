@@ -59,6 +59,12 @@ llvm::Module* ModuleFromIRBuilder(llvm::IRBuilder<>* b) {
   return module;
 }
 
+static void DieWithSMDiagnosticError(llvm::SMDiagnostic* diagnostic) {
+  LOG(FATAL) << diagnostic->getFilename().str() << ":"
+             << diagnostic->getLineNo() << ":" << diagnostic->getColumnNo()
+             << ": " << diagnostic->getMessage().str();
+}
+
 }  // namespace
 
 std::unique_ptr<llvm::Module> DropConstantInitializers(
@@ -741,6 +747,22 @@ void IncrementVariableForPhiloxRngState(int64 value, llvm::Module* module,
   llvm::Value* state_value_new = builder->CreateAdd(
       state_value_old, builder->getInt64(value), "inc_state");
   builder->CreateStore(state_value_new, state_ptr);
+}
+
+// Load a given IR module into memory.  This code was copied from
+// tensorflow/compiler/xla/service/gpu/llvm_gpu_backend/utils.cc.
+std::unique_ptr<llvm::Module> LoadIRModule(const string& filename,
+                                           llvm::LLVMContext* llvm_context) {
+  llvm::SMDiagnostic diagnostic_err;
+  std::unique_ptr<llvm::Module> module(
+      llvm::parseIRFile(llvm::StringRef(filename.data(), filename.size()),
+                        diagnostic_err, *llvm_context));
+
+  if (module == nullptr) {
+    DieWithSMDiagnosticError(&diagnostic_err);
+  }
+
+  return module;
 }
 
 }  // namespace llvm_ir

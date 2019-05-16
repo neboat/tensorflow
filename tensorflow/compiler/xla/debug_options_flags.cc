@@ -215,6 +215,10 @@ static void AllocateFlags() {
           flag_values->xla_cpu_multi_thread_eigen(),
           "When generating calls to Eigen in the CPU backend, "
           "use multi-threaded Eigen mode."),
+      tensorflow::Flag(
+          "xla_cpu_external_bitcode_path",
+          flag_values->mutable_xla_cpu_external_bitcode_path(),
+          "Link in the external bitcode file containing optimized kernels."),
       tensorflow::Flag("xla_gpu_cuda_data_dir",
                        flag_values->mutable_xla_gpu_cuda_data_dir(),
                        "If non-empty, speficies a local directory containing "

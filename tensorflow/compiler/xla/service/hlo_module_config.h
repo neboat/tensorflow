@@ -93,6 +93,10 @@ class HloModuleConfig {
     debug_options_ = debug_options;
   }
 
+  bool use_external_bitcode() const {
+    return (debug_options().xla_cpu_external_bitcode_path() != "");
+  }
+
   // Sets/returns the number of intra op threads for this module.
   void set_intra_op_parallelism_threads(
       const int intra_op_parallelism_threads) {

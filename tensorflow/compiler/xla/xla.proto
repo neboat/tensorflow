@@ -271,7 +271,10 @@ message DebugOptions {
   // END flags controlling dumping HLO modules.
   //
 
-  // Next id: 124
+  // Include the external bitcode at this path when compiling
+  string xla_cpu_external_bitcode_path = 124;
+
+  // Next id: 125
 
   // Extra options to pass to the compilation backend (e.g. LLVM); specific
   // interpretation of these values is left to the backend.

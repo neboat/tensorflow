@@ -36,12 +36,14 @@ limitations under the License.
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Linker/Linker.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/IPO/Internalize.h"
 #include "tensorflow/compiler/xla/cpu_function_runtime.h"
 #include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/map_util.h"
@@ -641,6 +643,25 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
 
   llvm_module->setDataLayout(jit_->data_layout());
   llvm_module->setTargetTriple(jit_->target_triple().getTriple());
+
+  if (module->config().use_external_bitcode()) {
+    const string& external_bitcode_path =
+      module->config().debug_options().xla_cpu_external_bitcode_path();
+    llvm::Linker linker(*llvm_module);
+    std::unique_ptr<llvm::Module> external_module =
+      llvm_ir::LoadIRModule(external_bitcode_path, &*llvm_context);
+    if (linker.linkInModule(
+            std::move(external_module), llvm::Linker::Flags::None /*LinkOnlyNeeded*/,
+            [](llvm::Module& M, const llvm::StringSet<>& GVS) {
+              llvm::internalizeModule(M, [&GVS](const llvm::GlobalValue& GV) {
+                return !GV.hasName() || (GVS.count(GV.getName()) == 0);
+              });
+            })) {
+      return tensorflow::errors::Internal(
+          absl::StrCat("Error linking external bitcode ",
+                       external_bitcode_path));
+    }
+  }
 
   HloComputation* entry_computation = module->entry_computation();
   std::unordered_map<const HloInstruction*, int64> instruction_to_profile_idx;
