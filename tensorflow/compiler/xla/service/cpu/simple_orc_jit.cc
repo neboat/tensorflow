@@ -115,7 +115,7 @@ SimpleOrcJIT::SimpleOrcJIT(
       object_layer_(
           execution_session_,
           [this](llvm::orc::VModuleKey) {
-            llvm::orc::RTDyldObjectLinkingLayer::Resources result;
+            llvm::orc::LegacyRTDyldObjectLinkingLayer::Resources result;
             result.MemMgr = std::make_shared<llvm::SectionMemoryManager>(
                 orc_jit_memory_mapper::GetInstance());
             result.Resolver = symbol_resolver_;
