@@ -756,18 +756,6 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   // jit_ compile the LLVM IR module to in-memory machine code.
   jit_->AddModule(std::move(llvm_module), std::move(llvm_context));
 
-  // Call the CSI constructor.
-  auto csiConstructorSymbol = jit_->FindCompiledSymbol("csirt.unit_ctor");
-  if (csiConstructorSymbol) {
-    void* csiConstructor = (void*) cantFail(csiConstructorSymbol.getAddress());
-    void (*fn)(void) = (void (*)(void))csiConstructor;
-    fn();
-  } else if (options::RunCilksan(module->config()) ||
-             options::RunCilkscale(module->config()) ||
-             options::RunCSI(module->config())) {
-    VLOG(3) << "Warning: CSI constructor not found?\n";
-  }
-
   cpu_executable.reset(new CpuExecutable(
       jit_->FindCompiledSymbol(function_name), std::move(assignment),
       std::move(module), function_name, std::move(hlo_profile_printer_data),
@@ -779,6 +767,20 @@ StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   }
 
   VLOG(1) << "Compilation finished";
+
+  // Call the CSI constructor.
+  llvm::JITSymbol csiConstructorSymbol = jit_->FindCompiledSymbol("csirt.unit_ctor");
+  if (csiConstructorSymbol) {
+    using CSICtorType = void (*)(void);
+    CSICtorType fn =
+      reinterpret_cast<CSICtorType>(cantFail(csiConstructorSymbol.getAddress()));
+    VLOG(1) << "csirt.unit_ctor at address " << reinterpret_cast<void*>(fn);
+    fn();
+  } else if (options::RunCilksan(module->config()) ||
+             options::RunCilkscale(module->config()) ||
+             options::RunCSI(module->config())) {
+    LOG(ERROR) << "CSI constructor not found!\n";
+  }
 
   jit_mutex_.unlock();
   return std::move(cpu_executable);
