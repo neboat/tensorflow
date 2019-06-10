@@ -285,11 +285,9 @@ llvm::Value* GpuElementalIrEmitter::EmitDeviceFunctionCall(
       false);  // No variadic arguments.
 
   // Declares the callee if it is not declared already.
-  llvm::Function* callee = llvm::dyn_cast<llvm::Function>(
-      b_->GetInsertBlock()
-          ->getModule()
-          ->getOrInsertFunction(callee_name, callee_type)
-          .getCallee());
+  llvm::Function* callee = llvm::cast<llvm::Function>(
+      b_->GetInsertBlock()->getModule()->getOrInsertFunction(
+          llvm_ir::AsStringRef(callee_name), callee_type));
 
   for (auto attribute : attributes) {
     callee->addFnAttr(attribute);

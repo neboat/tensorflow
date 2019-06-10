@@ -463,18 +463,11 @@ Status IrEmitter::EmitXfeedTransfer(XfeedKind kind, const Shape& shape,
 
   llvm::Function* acquire_func;
   if (kind == XfeedKind::kInfeed) {
-    acquire_func = llvm::dyn_cast<llvm::Function>(
-        module_
-            ->getOrInsertFunction(
-                runtime::kAcquireInfeedBufferForDequeueSymbolName, acquire_type)
-            .getCallee());
+    acquire_func = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+        runtime::kAcquireInfeedBufferForDequeueSymbolName, acquire_type));
   } else {
-    acquire_func = llvm::dyn_cast<llvm::Function>(
-        module_
-            ->getOrInsertFunction(
-                runtime::kAcquireOutfeedBufferForPopulationSymbolName,
-                acquire_type)
-            .getCallee());
+    acquire_func = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+        runtime::kAcquireOutfeedBufferForPopulationSymbolName, acquire_type));
   }
   acquire_func->setCallingConv(llvm::CallingConv::C);
 
@@ -487,19 +480,11 @@ Status IrEmitter::EmitXfeedTransfer(XfeedKind kind, const Shape& shape,
 
   llvm::Function* release_func;
   if (kind == XfeedKind::kInfeed) {
-    release_func = llvm::dyn_cast<llvm::Function>(
-        module_
-            ->getOrInsertFunction(
-                runtime::kReleaseInfeedBufferAfterDequeueSymbolName,
-                release_type)
-            .getCallee());
+    release_func = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+        runtime::kReleaseInfeedBufferAfterDequeueSymbolName, release_type));
   } else {
-    release_func = llvm::dyn_cast<llvm::Function>(
-        module_
-            ->getOrInsertFunction(
-                runtime::kReleaseOutfeedBufferAfterPopulationSymbolName,
-                release_type)
-            .getCallee());
+    release_func = llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+        runtime::kReleaseOutfeedBufferAfterPopulationSymbolName, release_type));
   }
   release_func->setCallingConv(llvm::CallingConv::C);
 
@@ -638,11 +623,9 @@ Status IrEmitter::HandleSort(HloInstruction* hlo) {
        b_.getInt32Ty()->getPointerTo(), b_.getInt1Ty(), b_.getInt8PtrTy(),
        b_.getInt64Ty()->getPointerTo(), less_than_function->getType()},
       /*isVarArg=*/false);
-  auto* key_value_sort_func = llvm::dyn_cast<llvm::Function>(
-      module_
-          ->getOrInsertFunction(runtime::kKeyValueSortSymbolName,
-                                key_value_sort_type)
-          .getCallee());
+  auto* key_value_sort_func =
+    llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+        runtime::kKeyValueSortSymbolName, key_value_sort_type));
   key_value_sort_func->setCallingConv(llvm::CallingConv::C);
   key_value_sort_func->setDoesNotThrow();
   llvm::Value* values = llvm_ir::EmitAllocaAtTaskEntryWithCount(
@@ -1265,8 +1248,8 @@ Status IrEmitter::HandleConvolution(HloInstruction* convolution) {
         LOG(WARNING) << "Using Eigen instead of MKL-DNN for single-threaded "
                         "conv2d function.";
       }
-      llvm::Function* conv_func = llvm::dyn_cast<llvm::Function>(
-          module_->getOrInsertFunction(fn_name, conv_type).getCallee());
+      llvm::Function* conv_func = llvm::cast<llvm::Function>(
+          module_->getOrInsertFunction(fn_name, conv_type));
       conv_func->setCallingConv(llvm::CallingConv::C);
       conv_func->setDoesNotThrow();
       conv_func->setOnlyAccessesArgMemory();
@@ -1345,8 +1328,8 @@ Status IrEmitter::HandleFft(HloInstruction* fft) {
                             ? runtime::kEigenFftSymbolName
                             : runtime::kEigenSingleThreadedFftSymbolName;
 
-  llvm::Function* fft_func = llvm::dyn_cast<llvm::Function>(
-      module_->getOrInsertFunction(fn_name, fft_type).getCallee());
+  llvm::Function* fft_func = llvm::cast<llvm::Function>(
+      module_->getOrInsertFunction(fn_name, fft_type));
   fft_func->setCallingConv(llvm::CallingConv::C);
   fft_func->setDoesNotThrow();
   fft_func->setOnlyAccessesInaccessibleMemOrArgMem();
@@ -2348,28 +2331,24 @@ Status IrEmitter::HandleCustomCall(HloInstruction* custom_call) {
     // TODO(b/66051036): Run the msan instrumentation pass instead.
     const llvm::DataLayout& dl = module_->getDataLayout();
     llvm::Type* intptr_type = b_.getIntPtrTy(dl);
-    auto* msan_unpoison_ir_function = llvm::cast<llvm::Function>(
-        module_
-            ->getOrInsertFunction(
-                "__msan_unpoison",
-                llvm::FunctionType::get(
-                    /*Result=*/b_.getVoidTy(),
-                    /*Params=*/{i8_ptr_type, intptr_type}, /*isVarArg=*/false))
-            .getCallee());
+    auto* msan_unpoison_ir_function =
+      llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+          "__msan_unpoison",
+          llvm::FunctionType::get(
+              /*Result=*/b_.getVoidTy(),
+              /*Params=*/{i8_ptr_type, intptr_type}, /*isVarArg=*/false)));
     Call(msan_unpoison_ir_function,
          {PointerCast(operands_alloca, i8_ptr_type),
           llvm::ConstantInt::get(
               intptr_type, *operands_alloca->getAllocationSizeInBits(dl) / 8)});
   }
-  auto* custom_call_ir_function = llvm::dyn_cast<llvm::Function>(
-      module_
-          ->getOrInsertFunction(
-              custom_call->custom_call_target(),
-              llvm::FunctionType::get(
-                  /*Result=*/b_.getVoidTy(),
-                  /*Params=*/{i8_ptr_type, operands_alloca->getType()},
-                  /*isVarArg=*/false))
-          .getCallee());
+  auto* custom_call_ir_function =
+    llvm::cast<llvm::Function>(module_->getOrInsertFunction(
+        custom_call->custom_call_target(),
+        llvm::FunctionType::get(
+            /*Result=*/b_.getVoidTy(),
+            /*Params=*/{i8_ptr_type, operands_alloca->getType()},
+            /*isVarArg=*/false)));
 
   TF_RETURN_IF_ERROR(EmitTargetAddressForOp(custom_call));
   // Write the tuple table if the output is a tuple.
@@ -2907,13 +2886,11 @@ void IrEmitter::TracingState::EmitTracingStart(llvm::IRBuilder<>* b,
   llvm::Function* function = b->GetInsertBlock()->getParent();
   llvm::Module* module = function->getParent();
   const char* fn_name = runtime::kTracingStartSymbolName;
-  llvm::FunctionCallee trace_func =
-      module->getOrInsertFunction(fn_name, fn_type);
-  if (auto* fn = llvm::dyn_cast<llvm::Function>(trace_func.getCallee())) {
-    fn->setCallingConv(llvm::CallingConv::C);
-    fn->setDoesNotThrow();
-    fn->setOnlyAccessesArgMemory();
-  }
+  llvm::Function* trace_func = llvm::cast<llvm::Function>(
+      module->getOrInsertFunction(fn_name, fn_type));
+  trace_func->setCallingConv(llvm::CallingConv::C);
+  trace_func->setDoesNotThrow();
+  trace_func->setOnlyAccessesInaccessibleMemOrArgMem();
   auto* hlo_name = b->CreateGlobalStringPtr(hlo->name());
   auto* activity_id =
       b->CreateCall(trace_func, {b->CreateBitCast(run_options, void_ptr_type),
@@ -2937,13 +2914,11 @@ void IrEmitter::TracingState::EmitTracingEnd(llvm::IRBuilder<>* b,
   llvm::Function* function = b->GetInsertBlock()->getParent();
   llvm::Module* module = function->getParent();
   const char* fn_name = runtime::kTracingEndSymbolName;
-  llvm::FunctionCallee trace_func =
-      module->getOrInsertFunction(fn_name, fn_type);
-  if (auto* fn = llvm::dyn_cast<llvm::Function>(trace_func.getCallee())) {
-    fn->setCallingConv(llvm::CallingConv::C);
-    fn->setDoesNotThrow();
-    fn->setOnlyAccessesArgMemory();
-  }
+  llvm::Function* trace_func = llvm::cast<llvm::Function>(
+      module->getOrInsertFunction(fn_name, fn_type));
+  trace_func->setCallingConv(llvm::CallingConv::C);
+  trace_func->setDoesNotThrow();
+  trace_func->setOnlyAccessesInaccessibleMemOrArgMem();
   auto* activity_id = activity_ids_.at(hlo);
   b->CreateCall(trace_func,
                 {b->CreateBitCast(run_options, void_ptr_type), activity_id});
